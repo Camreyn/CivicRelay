@@ -1,0 +1,8 @@
+# Predictable source text across developer and GitHub Actions checkouts.
+* text=auto eol=lf
+*.cmd text eol=crlf
+
+# These generated artifacts carry byte/digest identities. Preserve exact bytes.
+data/catalog.json -text
+data/records-response.yml -text
+app/static/map.json -text

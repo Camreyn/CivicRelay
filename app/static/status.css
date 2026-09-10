@@ -1,0 +1,7 @@
+.dot.attention{background:#e29b80}.dot.closed{background:#a0abb6}
+.state[data-status=attention] path{fill:#e29b80;stroke:#e29b80}
+.state[data-status=closed] path{fill:#a0abb6;stroke:#a0abb6}
+.message .help{overflow-wrap:anywhere}.inbox-row>div:first-child{min-width:0}.message{min-width:0}
+.case-card h3{margin-top:10px}.state-panel select{min-height:44px}
+.send-controls{border-top:1px solid #d8e1ea;margin-top:16px;padding-top:14px}.send-status{font-size:14px;font-weight:600;line-height:1.5}.send-error{margin-top:10px;padding:10px 12px;border-left:3px solid #bd412f;background:#ffefea;color:#7c2519;font-size:14px;overflow-wrap:anywhere}.send-controls button:disabled{cursor:not-allowed}.send-controls .actions{align-items:flex-start}
+.send-feedback{margin-top:10px;padding:10px 12px;border-left:3px solid #86a7cc;background:#e9f0f7;font-size:14px}

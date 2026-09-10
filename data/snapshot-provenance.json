@@ -1,0 +1,80 @@
+{
+  "generated_at_utc": "2026-09-10T14:55:39.257Z",
+  "source_repository": "https://github.com/Camreyn/civicresultmaps",
+  "source_commit": "32a458f5ebb2d5984e417fa4ac8326309d7cf60a",
+  "source_files_modified": false,
+  "catalog_sha256": "2a1fb5841220f9b76d4e19a59f609942dcd7daf344cd185463d781745e8ddee4",
+  "generated_map_sha256": "e7f897cece08040e96119b7e4d3125c65576b5675da36a38fc5f45b9e44450b4",
+  "inputs": [
+    {
+      "path": ".github/ISSUE_TEMPLATE/records-response.yml",
+      "bytes": 3448,
+      "sha256": "b8c3c01c4eef961ee26d6202f1c66af989b2919261c8b282b5a8d0dc5af62002"
+    },
+    {
+      "path": "data/electronic-integrity-received-files.json",
+      "bytes": 17000,
+      "sha256": "099cf20670c71a3dc5d550ede7923186e0e51e51f1f8e05d21ba0e533ad152dc"
+    },
+    {
+      "path": "data/electronic-integrity-request-contacts.json",
+      "bytes": 5254,
+      "sha256": "ed0d98ab4e46ccf59d6fc246d6c95c9588ea2249c517e6ff9a26dfedf0af0355"
+    },
+    {
+      "path": "data/electronic-integrity-request-operations.json",
+      "bytes": 6207,
+      "sha256": "f42c8c6c2bb859ca0b3eb2f65184ff2fc3e483b7cedfa3493382c226fcefed1f"
+    },
+    {
+      "path": "data/electronic-integrity-request-tracker.json",
+      "bytes": 92322,
+      "sha256": "c24628b8af38fe81220ce7c43a5f1c6062670a3cc5ef058248947828431fe20c"
+    },
+    {
+      "path": "data/source-records-request-contacts.json",
+      "bytes": 3319,
+      "sha256": "a2e79bdc2c6baa9cd58957a82f5fc3e2e45c53b23851ddbd50f11d00762e200d"
+    },
+    {
+      "path": "data/source-records-request-operations.json",
+      "bytes": 2729,
+      "sha256": "e784ddc4cb5693c495a00a6a36032beb00760585d07793478ec23c5778f1af6d"
+    },
+    {
+      "path": "data/source-records-request-received-files.json",
+      "bytes": 1726,
+      "sha256": "0b0b72406ad5f1253bdb0fe734f051b64ad2c1e659bb23e8d47bbf8775274830"
+    },
+    {
+      "path": "data/source-records-request-tracker.json",
+      "bytes": 9089,
+      "sha256": "57426fa508f887935babdab70de878c4c15543a0397d8dcb453fd7021ce97b46"
+    },
+    {
+      "path": "public/data/national-counties.geojson",
+      "bytes": 1347504,
+      "sha256": "dc6a7ef96ef8eb777401c2437927b7c69a06d46c170e18ed167f6ad270e332b9"
+    },
+    {
+      "path": "scripts/state-metadata.mjs",
+      "bytes": 3061,
+      "sha256": "1e87d5679053de3f6ad8506a64c3e6837cf41d8927ce9872f7e1dab4ced23ee2"
+    },
+    {
+      "path": "src/lib/electronic-integrity-requests.ts",
+      "bytes": 5858,
+      "sha256": "1dfb65e7b3dff743c4283afd6d8f8598f69652259a98f0c78d3045d7a27ab76b"
+    },
+    {
+      "path": "src/lib/source-records-requests.ts",
+      "bytes": 6402,
+      "sha256": "9a772e666c03aab9798e856e280458faea06bc9ee380d58289a7fbf9eb8e0c6a"
+    }
+  ],
+  "scope": "Public request templates, intake form and workflow-only map; no private cases, mailbox or credential input.",
+  "caveats": [
+    "Snapshot does not refresh at runtime. Review changes and routing before use.",
+    "County-derived display map is not a new official boundary product."
+  ]
+}

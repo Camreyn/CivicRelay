@@ -1,0 +1,26 @@
+{
+  "name": "civic-relay",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "description": "Windows-local records-request dashboard and guarded Proton Mail Bridge tools",
+  "repository": { "type": "git", "url": "git+https://github.com/Camreyn/CivicRelay.git" },
+  "homepage": "https://github.com/Camreyn/CivicRelay#readme",
+  "bugs": { "url": "https://github.com/Camreyn/CivicRelay/issues" },
+  "license": "Apache-2.0",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node scripts/start.mjs",
+    "test": "npm run test:node && npm run test:python && npm run test:docs",
+    "test:node": "node --test app/tools.test.mjs app/page-tools.test.mjs app/workspace.test.mjs app/send-controls.test.mjs connector/server.test.mjs scripts/standalone.test.mjs scripts/publication.test.mjs",
+    "test:python": "node scripts/test-python.mjs",
+    "test:browser": "node app/send-flow.browser.test.mjs",
+    "test:live-readonly": "node app/live-send-readonly-smoke.mjs",
+    "snapshot:refresh": "node scripts/refresh-public-snapshot.mjs",
+    "docs:generate": "node scripts/generate-tool-reference.mjs",
+    "test:docs": "node scripts/check-docs.mjs",
+    "publish:check": "node scripts/check-publish-safety.mjs"
+  },
+  "dependencies": { "@modelcontextprotocol/server": "2.0.0" },
+  "devDependencies": { "@modelcontextprotocol/client": "2.0.0", "playwright": "1.61.1", "typescript": "5.9.3" }
+}

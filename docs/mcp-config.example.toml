@@ -1,0 +1,48 @@
+# Generated paths are machine-specific. Run scripts/configure-codex.mjs;
+# do not copy this placeholder template directly into a live configuration.
+[mcp_servers.proton_mail]
+enabled = true
+required = false
+command = '__NODE__'
+args = ['__ROOT__\connector\server.mjs']
+cwd = '__ROOT__\connector'
+env = { CRM_PROTON_PYTHON = '__PYTHON__' }
+startup_timeout_sec = 15.0
+tool_timeout_sec = 210.0
+default_tools_approval_mode = 'writes'
+enabled_tools = [
+  'proton_status', 'proton_check_connection', 'proton_list_messages',
+  'proton_read_message', 'proton_prepare_draft', 'proton_list_drafts',
+  'proton_get_draft', 'proton_send_draft',
+]
+
+[mcp_servers.proton_mail.tools.proton_send_draft]
+approval_mode = 'prompt'
+
+[mcp_servers.records_desk]
+enabled = true
+required = false
+command = '__NODE__'
+args = ['__ROOT__\app\tools.mjs']
+cwd = '__ROOT__\app'
+env = { CRM_PROTON_PYTHON = '__PYTHON__', RECORDS_DESK_NODE = '__NODE__', RECORDS_DESK_GH = '__GH__' }
+startup_timeout_sec = 15.0
+tool_timeout_sec = 250.0
+default_tools_approval_mode = 'writes'
+enabled_tools = [
+  'desk_status', 'desk_list_cases', 'desk_get_case', 'desk_save_case',
+  'desk_clone_case', 'desk_sync_mail', 'desk_read_message', 'desk_link_message',
+  'desk_mark_reviewed', 'desk_capture_attachments', 'desk_prepare_email',
+  'desk_send_email', 'desk_record_portal', 'desk_prepare_intake',
+  'desk_publish_intake', 'desk_export_package', 'desk_link_issue',
+  'desk_get_workflow', 'desk_list_messages', 'desk_get_intake',
+]
+
+[mcp_servers.records_desk.tools.desk_send_email]
+approval_mode = 'prompt'
+
+[mcp_servers.records_desk.tools.desk_publish_intake]
+approval_mode = 'prompt'
+
+[mcp_servers.records_desk.tools.desk_export_package]
+approval_mode = 'prompt'

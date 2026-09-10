@@ -1,0 +1,16 @@
+CivicRelay (formerly Civic Records Desk)
+
+Extracted from CivicResultMaps on 2026-09-10.
+Standalone source repository: https://github.com/Camreyn/CivicRelay
+Original source: https://github.com/Camreyn/civicresultmaps
+The original Apache License, Version 2.0 is retained in LICENSE.
+
+This extraction changes runtime/catalog/map integration and adds standalone
+packaging, launch/configuration helpers, tests and documentation. It preserves
+the original mail safeguards and does not relicense third-party dependencies.
+
+The public catalog, intake form and workflow map are derived from the reviewed
+source checkout. data/snapshot-provenance.json records the source commit and
+input/output hashes. The map is an illustrative county-derived navigation asset,
+not an official boundary release. Source attribution and caveats remain in the
+catalog and provenance; private correspondence is not part of this distribution.

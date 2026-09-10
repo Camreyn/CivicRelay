@@ -1,0 +1,44 @@
+name: Windows verification
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-verification:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.13'
+      - name: Select installed runtimes (no mailbox credentials)
+        run: |
+          $python = (Get-Command python.exe).Source
+          $node = (Get-Command node.exe).Source
+          "CRM_PROTON_PYTHON=$python" >> $env:GITHUB_ENV
+          "RECORDS_DESK_NODE=$node" >> $env:GITHUB_ENV
+          & $python -c "import tkinter, ctypes; print('Python desktop dependencies available')"
+      - name: Install locked dependencies without lifecycle scripts
+        run: npm.cmd ci --ignore-scripts --no-audit --no-fund
+      - name: Synthetic unit, MCP, storage, and documentation checks
+        run: npm.cmd test
+      - name: Publication path, staged-content and snapshot checks
+        run: npm.cmd run publish:check
+      - name: Install synthetic-test browser
+        run: npm.cmd exec -- playwright install chromium
+      - name: Synthetic browser workflow (no live mail or approval windows)
+        run: npm.cmd run test:browser
