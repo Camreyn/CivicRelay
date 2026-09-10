@@ -1,7 +1,5 @@
 # CivicRelay
 
-*Public records. From request to result.*
-
 A Windows-local dashboard and assistant toolkit for managing public-records
 requests through Proton Mail Bridge. It is a standalone project extracted from
 CivicResultMaps, not a hosted service or a production election-data importer.
