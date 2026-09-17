@@ -31,6 +31,7 @@ Bridge account, GitHub authentication, API key or real email is required.
 | --- | --- | --- |
 | UI → local API | Real Chromium with the actual static app and synthetic loopback responses; map, navigation, form preservation, countdown and errors | No real account or agency action |
 | MCP → worker | Actual STDIO handshakes, public schemas, strict arguments and isolated unconfigured profiles | Tests do not enroll a real mailbox |
+| Generated config → MCP | Actual generated TOML parsed, complete tool allowlists checked, both servers launched from generated paths/environment, private template/campaign workflow exercised | SDK rehearsal, not a Codex UI/trust/permission test |
 | Workflow → storage | Synthetic case/mail/artifact records, revision/lease behavior and restart tests | Does not audit the live operator's database |
 | Encryption/storage guards | Windows DPAPI round trips using synthetic values, tamper/link/repository-path rejection | Not a third-party cryptographic/security audit |
 | Send → receipt | Direct send without Tkinter/confirmation arguments, mocked SMTP, exact digest, quota, concurrency, uncertain outcomes and duplicate prevention | No real message sent; delivery is not tested |
@@ -47,6 +48,38 @@ requests, closes its browser/server, and produces only ignored synthetic
 screenshots. A fixture's “send call” means a call to the fake local handler,
 not an email. Tests use temporary profiles for worker mail operations; do not
 replace those fixtures with the operator's real account.
+
+## Assistant configuration regression
+
+`scripts/configuration.test.mjs` is part of `npm.cmd test` and the Windows CI
+suite. It covers the configuration a new user actually generates, not just
+tools advertised directly by the servers:
+
+- Parses generated TOML with Python's standard-library `tomllib`; requires all
+  40 records and 8 mail tools exactly once. Negative fixtures detect missing,
+  duplicate, stale or disabled tools and a disabled server.
+- Checks absolute local entry points and the existing host permission defaults
+  and per-tool overrides without opening or changing any real `.codex` file.
+- Runs the actual setup CLI in a disposable fixture. The first run produces a
+  complete configuration; repeated runs and an overwrite flag cannot replace it.
+- Starts both real STDIO servers from those generated settings in legacy and
+  automatic protocol negotiation modes. An isolated synthetic profile exercises
+  workspace settings, template import/preview/version/export, campaigns and
+  remaining targets, request progress, a private publication preview, a local
+  synthetic ZIP and equipment/inbox status. The mailbox remains unconfigured.
+
+To run just this regression:
+
+```powershell
+node --test scripts/configuration.test.mjs
+```
+
+These tests reproduced the original 0.6.0 omission before the fix: only 20 of
+40 records tools were enabled. They now guard future additions to either server.
+They do not exercise Codex's UI, project trust, permission prompts or a particular
+model's reasoning. No mailbox is enrolled or contacted, no real message is sent,
+and no GitHub issue is created. SMTP and publication behavior remain covered by
+the separate mocked tests above, not by a live delivery claim.
 
 ## GitHub Actions
 

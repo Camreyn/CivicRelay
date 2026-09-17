@@ -222,7 +222,7 @@ class GeneralReviewTests(TestCase):
         service = Service(MemoryDB(), catalog={'sha256': 'catalog', 'cases': [], 'states': []},
                           mail_store=object())
         with patch('service.connector.dispatch', return_value={}):
-            self.assertEqual(service.dispatch('desk_status', {})['tooling_version'], '0.6.0')
+            self.assertEqual(service.dispatch('desk_status', {})['tooling_version'], '0.6.1')
 
     def test_unassigning_response_evidence_clears_progress_that_requires_linkage(self):
         target = {'id': 'target-a', 'label': 'Synthetic target', 'level': 'other'}

@@ -320,7 +320,7 @@ class HttpTests(unittest.TestCase):
         try:
             code,_,body=request('/health');health=json.loads(body)
             self.assertEqual(code,200);self.assertEqual(health['distribution'],'civic-records-desk')
-            self.assertEqual(health['package_version'],'0.6.0');self.assertEqual(health['tooling_version'],'0.6.0')
+            self.assertEqual(health['package_version'],'0.6.1');self.assertEqual(health['tooling_version'],'0.6.1')
             self.assertEqual(health['installation_id'],hashlib.sha256(str(server.ROOT.parent).lower().encode()).hexdigest())
             self.assertEqual(request(headers={'Host':'attacker.example'})[0],403)
             self.assertEqual(request('/api/bootstrap')[0],403)

@@ -36,6 +36,14 @@ enabled_tools = [
   'desk_send_email', 'desk_record_portal', 'desk_prepare_intake',
   'desk_publish_intake', 'desk_export_package', 'desk_link_issue',
   'desk_get_workflow', 'desk_list_messages', 'desk_get_intake',
+  'desk_get_workspace', 'desk_save_workspace', 'desk_list_templates',
+  'desk_get_template', 'desk_save_template', 'desk_preview_template',
+  'desk_export_template', 'desk_import_template', 'desk_list_campaigns',
+  'desk_save_campaign', 'desk_create_request', 'desk_save_request_progress',
+  'desk_list_destinations', 'desk_save_destination', 'desk_prepare_publication',
+  'desk_export_case', 'desk_get_equipment_campaign',
+  'desk_create_equipment_request', 'desk_save_equipment_state',
+  'desk_save_equipment_progress',
 ]
 
 [mcp_servers.records_desk.tools.desk_send_email]

@@ -47,8 +47,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if not self.allowed(): return self.json({'ok':False,'error':'Local origin required.'},403)
         route=urllib.parse.urlsplit(self.path).path
-        if route=='/health': return self.json({'ok':True,'app':'CivicResultMaps Records Desk','local_only':True,'tooling_version':'0.6.0',
-            'distribution':'civic-records-desk','package_version':'0.6.0','installation_id':INSTALLATION_ID})
+        if route=='/health': return self.json({'ok':True,'app':'CivicResultMaps Records Desk','local_only':True,'tooling_version':'0.6.1',
+            'distribution':'civic-records-desk','package_version':'0.6.1','installation_id':INSTALLATION_ID})
         if route.startswith('/api/'):
             if not self.allowed(True): return self.json({'ok':False,'error':'Open the local dashboard first.'},403)
             if route=='/api/bootstrap':
