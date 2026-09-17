@@ -193,7 +193,7 @@ class Service:
         if name=='desk_save_equipment_progress':return equipment.update_request(self,args)
         if name=='desk_status':
             s=connector.dispatch('proton_status',{},self.mail_store)
-            return {'connector':s,'private_storage':str(self.db.root),'catalog_requests':len(self.catalog['cases']),'tooling_version':'0.6.0',
+            return {'connector':s,'private_storage':str(self.db.root),'catalog_requests':len(self.catalog['cases']),'tooling_version':'0.6.1',
                     'dashboard_url':'http://127.0.0.1:8766/','issue_repository':intake.REPOSITORY,
                     'approval':'No CivicRelay per-action approval dialogs; host permissions remain separate.',
                     'requires_desktop_confirmation':False,

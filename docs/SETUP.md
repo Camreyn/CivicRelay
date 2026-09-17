@@ -28,7 +28,7 @@ npm.cmd ci --ignore-scripts
 On an existing installation, moving this folder does not require account setup.
 Do not copy encrypted databases into the repository to make the app portable.
 
-CivicRelay 0.6.0 supports one dedicated Proton Bridge mailbox for each Windows
+CivicRelay 0.6.1 supports one dedicated Proton Bridge mailbox for each Windows
 user. New users may choose their dedicated address and sender display name in
 the local setup window. It remains a local records manager, not a general or
 multi-account email client. Existing v1 CivicResultMaps settings, drafts,
@@ -119,6 +119,10 @@ node scripts/configure-codex.mjs
 It generates **only** this folder's ignored `.codex/config.toml`, using absolute
 paths for this checkout. It refuses to overwrite an existing configuration. The
 reviewable template is [mcp-config.example.toml](mcp-config.example.toml).
+The corrected starter template enables all **40 records tools and 8 mail tools**,
+including workspace settings, reusable templates, campaigns, equipment tracking,
+publication previews and private exports. The tool allowlists are checked against
+the server schemas by `npm.cmd test`.
 It does not change global trust, enroll credentials, launch an MCP server, or
 register the unrelated CivicResultMaps data MCP.
 
@@ -140,6 +144,67 @@ works without WebMCP; page tools appear only when the browser exposes the
 supported API. Native tools do not require an open browser tab. CivicRelay itself
 does not call a model API, so it has no OpenAI API-key requirement; your assistant
 client's account, permissions and availability are separate.
+
+### Upgrading an existing assistant configuration
+
+The original 0.6.0 configuration template enabled only 20 records tools. Its
+servers expose 40, but the host's `enabled_tools` allowlist hides the omitted
+workspace, template, campaign, destination and equipment tools. A working
+dashboard or successful server restart does not correct an old allowlist.
+
+1. Update to 0.6.1 or later, which includes the corrected
+   [configuration template](mcp-config.example.toml). Do not re-enroll mail.
+2. Review the configuration your assistant actually uses. Normally this is
+   `.codex/config.toml` in this checkout; a migrated installation may still
+   register CivicRelay from its original parent project. Do not create duplicate
+   server entries in another project to work around a stale list.
+3. Compare `[mcp_servers.records_desk].enabled_tools` with the current template
+   and add the omitted tools you want available. Preserve machine-specific
+   paths, other servers, `disabled_tools`, and all existing permission choices.
+   A deliberately restricted list may remain restricted. Do not replace the
+   whole file with the placeholder template or delete it to rerun setup.
+4. Restart the two CivicRelay MCP connections when no operation is in progress,
+   then perform the read-only connection check below. Host trust and permission
+   prompts remain controlled by the assistant client.
+
+The generator intentionally refuses to overwrite an existing file, including
+when passed an overwrite flag. Source updates and tests do not edit a live
+assistant configuration. The current template is the source of truth for tool
+names; [the tool reference](TOOL-REFERENCE.md) describes their arguments.
+
+### Check the assistant connection
+
+In the trusted local project, ask the assistant:
+
+> Check CivicRelay's local status and list the available workspace, templates,
+> campaigns and publication destinations using `desk_status`,
+> `desk_get_workspace`, `desk_list_templates`, `desk_list_campaigns`, and
+> `desk_list_destinations`. Do not sync the inbox, send anything, save settings,
+> export files or publish anything.
+
+An empty list is valid on a fresh installation. These checks do not contact the
+mail provider or GitHub. Missing tools indicate a connection/allowlist problem,
+not a reason to enter credentials again. Test mail connectivity separately using
+the enrollment steps above only when ready for live mail.
+
+Once connected, a useful first task is:
+
+> Create a reusable template and campaign for my described records request.
+> Ask me for any missing scope or jurisdiction, verify official routing, and
+> prepare a draft. Stop before sending, accepting fees or publishing records.
+
+An operator may subsequently delegate specific sends and reply handling to the
+assistant; describe the recipients, scope and fee limits explicitly. The assistant
+can use CivicRelay's tools within that authorization, subject to its own host's
+permissions. Request preparation does not send mail. The owner must enroll and
+enable their own dedicated mailbox locally before a send is possible.
+
+Other assistant clients need local STDIO MCP support and their own equivalent
+configuration for both entry points. The Codex TOML is not a universal client
+configuration. Access to a normal chat window or the dashboard URL alone does
+not connect an assistant to this PC. This project tests the MCP protocol with
+the SDK; it does not certify every assistant client or provide an unattended
+scheduler. See [testing limits](TESTING.md#assistant-configuration-regression).
 
 For an intended GitHub publication, configure GitHub CLI separately before
 publishing an issue. `gh auth status` must confirm authentication to an account
