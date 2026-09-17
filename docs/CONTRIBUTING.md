@@ -4,8 +4,11 @@
 
 Read [architecture](ARCHITECTURE.md), [privacy/security](SECURITY.md) and the
 [operator workflow](OPERATOR-TOOLS.md). Preserve user edits and immutable saved
-identities. Keep tests synthetic. Do not change confirmation, quota, TLS,
+identities. Keep tests synthetic. Do not change quota, TLS,
 environment, storage or publication boundaries as a convenience fix.
+The owner-requested 0.4.0 change removes app per-action dialogs, not identity,
+privacy or transport safeguards. Document workflow-policy changes explicitly;
+do not silently expand authority or alter assistant-host permissions.
 
 Source layout is described in the root README. Python uses the standard library;
 JavaScript packages are locked. Node/MCP tests require the configured Python
@@ -62,6 +65,6 @@ file, branch name, commit message and author field is public.
 The original folder may remain named `CivicRecordsDesk`. Preserve its ignored
 configuration and research directories during updates. Do not rename the legacy
 Windows storage namespace or re-enroll Bridge because the public app was renamed.
-Stop only the identified dashboard, and only while no mail/approval operation is
+Stop only the identified dashboard, and only while no mail or publication operation is
 active, if a server restart is required. Native tool connections may also need a
 restart after tool-code/schema changes. Do not start detached STDIO servers.

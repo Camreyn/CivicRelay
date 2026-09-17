@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "transport": {
+    "method": "POST",
+    "path": "/api/operation",
+    "envelope": {"tool": "desk_*", "arguments": {}}
+  },
+  "operations": {
+    "desk_get_workspace": {"arguments": {}, "read_only": true, "returns": {"workspace": {"id": "default", "revision": 0, "name": "", "organization": "", "signature": "", "requester_name": "", "requester_address": "", "requester_phone": "", "requester_configured": false, "legacy_storage": false, "starter_pack": "blank"}}},
+    "desk_save_workspace": {"arguments": {"revision": 0, "name": "", "organization": "", "signature": "", "requester_name": "", "requester_address": "", "requester_phone": "", "starter_pack": "blank"}, "returns": {"workspace": {}}},
+    "desk_list_templates": {"arguments": {}, "read_only": true, "returns": {"templates": []}},
+    "desk_get_template": {"arguments": {"template_id": ""}, "read_only": true, "returns": {"template": {}}},
+    "desk_save_template": {"arguments": {"template_id": "optional", "revision": "optional", "definition": {}}, "returns": {"template": {}, "created": true}},
+    "desk_preview_template": {"arguments": {"template_id": "", "values": {}}, "read_only": true, "returns": {"template_id": "", "version": 1, "hash": "", "rendered": {"subject": "", "body": ""}, "missing_fields": []}},
+    "desk_export_template": {"arguments": {"template_id": ""}, "read_only": true, "returns": {"definition": {}}},
+    "desk_import_template": {"arguments": {"definition": {}}, "returns": {"template": {}, "created": true}},
+    "desk_list_campaigns": {"arguments": {}, "read_only": true, "returns": {"campaigns": []}},
+    "desk_save_campaign": {"arguments": {"campaign_id": "optional", "revision": "optional", "name": "", "description": "", "template_id": "", "date_start": "", "date_end": "", "targets": [{"id": "", "label": "", "level": "federal", "state": "optional"}]}, "returns": {"campaign": {}, "created": true}},
+    "desk_create_request": {"arguments": {"campaign_id": "", "template_id": "optional", "target_id": "", "agency": "", "values": {}}, "returns": {"case": {}, "created": true, "messages_sent": 0, "fees_incurred": false}},
+    "desk_save_request_progress": {"arguments": {"case_id": "", "revision": 0, "response_stage": "none", "response_message_id": "required unless response_stage is none or closed", "coverage": "not_assessed", "note": "optional", "fee_note": "optional", "procedure_note": "optional", "deadline_date": "optional", "deadline_kind": "optional", "deadline_source": "optional", "deadline_basis": "optional", "deadline_checked_date": "optional"}, "returns": {"case": {}, "messages_sent": 0, "fees_incurred": false}}
+  },
+  "template_definition": {
+    "required": ["schema_version", "title", "fields", "subject", "body", "sources"],
+    "schema_version": 1,
+    "fields": [{"id": "topic", "label": "Topic", "required": true, "type": "text"}],
+    "sources": [{"title": "Official records page", "url": "https://example.gov/records", "review_date": "2026-09-17"}],
+    "placeholder_syntax": ["{{field}}", "{{#if field}}...{{/if}}"],
+    "private_defaults": "prohibited",
+    "archive": "definition.archived boolean; version snapshots remain immutable",
+    "duplicate": "desk_save_template without template_id creates a distinct template"
+  },
+  "workspace_private_fields": ["requester_name", "requester_address", "requester_phone"],
+  "safety": ["No operation sends email, accepts fees, establishes legal eligibility, or chooses a destination.", "Workspace builtins organization, signature, requester_email, agency, jurisdiction, state, date_start and date_end render only when explicitly referenced. Personal requester values are injected only through an explicitly declared required field of the same name.", "Case creation freezes its template version/hash and rendered fields; later template changes or archive do not invalidate it."]
+}

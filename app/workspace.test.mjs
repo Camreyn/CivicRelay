@@ -31,10 +31,11 @@ function fixture(){
   if(name==='desk_read_message')return {message:{id:args.message_id,case_id:record.id,folder:'INBOX',subject:'Agency answer',reply_to:'Office <records@example.gov>',from:'Office <records@example.gov>',message_id:'<reply@example.gov>'}};
   if(name==='desk_prepare_email'){const d={draft_id:'synthetic-draft',state:'draft',to:[record.recipient],from:data.email,subject:record.subject,body:record.body,digest:'a'.repeat(64),in_reply_to:args.reply_message_id?'reply':null};drafts=[d];record.revision++;return {draft:d,messages_sent:0};}
   if(name==='desk_prepare_intake'){const issue={id:'synthetic-intake',state:'prepared',fields:args.fields,artifacts:[],artifact_ids:[],title:'Synthetic intake',body:'Public preview',digest:'b'.repeat(64),form_url:'https://example.gov'};issues=[issue];record.stage='ready';record.revision++;return {issue,published:false};}
+  if(name==='desk_prepare_publication'){const target=data.destinations.find(d=>d.id===args.destination_id);assert.ok(target);const issue={id:'synthetic-publication',destination_id:target.id,target_snapshot:structuredClone(target),state:'prepared',fields:args.fields,artifacts:[],artifact_ids:args.artifact_ids,title:'Synthetic general intake',body:'Public preview',digest:'c'.repeat(64),form_url:'https://github.com/example/records/issues/new'};issues=[issue];record.revision++;return {issue,published:false};}
   throw Error('Unexpected synthetic operation: '+name);
  };
  const workspace=createWorkspace({$,el,op,notice:()=>{},labels:{},badge:()=>el('span'),getData:()=>data,refresh:async()=>{},selectState:()=>{}});
- return {$,record,workspace,calls,setHook:fn=>hook=fn,setArtifacts:rows=>artifacts=rows};
+ return {$,root,data,record,workspace,calls,setHook:fn=>hook=fn,setArtifacts:rows=>artifacts=rows};
 }
 test('actual workspace preserves unsaved correspondence/intake and refuses stale overwrite',async()=>{
  const f=fixture(),w=f.workspace;await w.openCase(f.record.id,false);
@@ -45,6 +46,30 @@ test('actual workspace preserves unsaved correspondence/intake and refuses stale
  await w.afterOperation();s=w.snapshot();assert.equal(s.correspondence.body,'Unsaved personal edits');assert.equal(s.intake.fields.response_summary,'Unsaved response summary');assert.equal(s.revision,1);assert.equal(s.current_saved_revision,2);
  await assert.rejects(()=>w.saveCurrent({workspace_version:s.workspace_version}),/stale revision/);
  assert.throws(()=>w.assertClean(),/Unsaved/);assert.equal(f.record.body,'New content saved elsewhere');
+});
+
+test('generic publication is synchronous, explicitly selected and independent of correspondence',async()=>{
+ const f=fixture(),w=f.workspace;f.record.general_campaign_id='campaign-synthetic';f.record.campaign_id='campaign-synthetic';
+ f.data.destinations=[{id:'destination-synthetic',name:'Synthetic',repository:'example/records',template:'records.yml',revision:1,enabled:true,template_sha256:'d'.repeat(64),fields:[{id:'summary',label:'Summary',type:'textarea',required:true,options:[]}]}];
+ f.setArtifacts([{id:'artifact-synthetic',filename:'synthetic.txt',bytes:20,content_type:'text/plain',sha256:'e'.repeat(64)}]);
+ await w.openCase(f.record.id,false);assert.equal(w.snapshot().unsaved_changes,false);assert.equal(w.snapshot().intake.destination_id,'');assert.deepEqual(w.snapshot().intake.artifact_ids,[]);
+ const choose=f.$('intake-destination');choose.value='destination-synthetic';choose.onchange();
+ let s=w.snapshot();w.stageCorrespondence({case_id:s.case_id,workspace_version:s.workspace_version,fields:{body:'Unsaved generic correspondence'}});
+ s=w.snapshot();w.stageIntake({workspace_version:s.workspace_version,fields:{summary:'Reviewed generic summary'},artifact_ids:[]});
+ assert.throws(()=>w.stageIntake({workspace_version:w.snapshot().workspace_version,fields:{private_unknown:'Rejected'}}),/Unknown/);
+ await w.prepareCurrentIntake({workspace_version:w.snapshot().workspace_version});
+ const call=f.calls.find(c=>c.name==='desk_prepare_publication');assert.equal(call.args.destination_id,'destination-synthetic');assert.deepEqual(call.args.fields,{summary:'Reviewed generic summary'});assert.deepEqual(call.args.artifact_ids,[]);
+ s=w.snapshot();assert.equal(f.record.stage,'draft');assert.equal(s.correspondence.body,'Unsaved generic correspondence');assert.equal(s.unsaved_changes,true);
+ assert.ok(f.root.querySelectorAll('button').some(b=>b.textContent==='Publish this public issue'));
+ f.data.destinations[0].template_sha256='f'.repeat(64);await w.refreshDetail();
+ assert.ok(!f.root.querySelectorAll('button').some(b=>b.textContent==='Publish this public issue'));assert.equal(w.snapshot().correspondence.body,'Unsaved generic correspondence');
+});
+
+test('generic workspace needs no destination or remote calls to offer a private export',async()=>{
+ const f=fixture();f.record.general_campaign_id='campaign-synthetic';f.data.destinations=[];await f.workspace.openCase(f.record.id,false);
+ assert.equal(f.workspace.snapshot().unsaved_changes,false);assert.deepEqual(f.workspace.snapshot().intake.fields,{});
+ assert.ok(f.root.querySelectorAll('button').some(b=>b.textContent==='Export private case package'));
+ assert.deepEqual(f.calls.map(c=>c.name),['desk_get_case']);
 });
 test('saved form can start a threaded reply and tool refresh preserves that chain',async()=>{
  const f=fixture(),w=f.workspace;await w.openCase(f.record.id,false);let s=w.snapshot();

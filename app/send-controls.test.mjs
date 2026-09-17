@@ -40,7 +40,7 @@ test('countdown is visible, disables Send, and expiry only refreshes local eligi
   assert.equal(f.tasks.size, 0); f.c.destroy();
 });
 
-test('click rechecks availability and never opens send approval when another window used the slot', async () => {
+test('click rechecks availability and never sends when another window used the slot', async () => {
   let checks = 0;
   const f = fixture({policy: () => ++checks === 1 ? available() : available({ready: false, retry_after_seconds: 60, reason: 'cooldown'})});
   await f.c.ready; await f.send.onclick();
@@ -63,16 +63,16 @@ test('fresh eligible click submits only the exact immutable identity, once', asy
   await f.send.onclick(); release({state: 'accepted'}); await send;
   const calls = f.calls.filter(x => x.name === 'desk_send_email');
   assert.equal(calls.length, 1);
-  assert.deepEqual(calls[0].args, {case_id: 'synthetic-case', draft_id: 'synthetic-draft', expected_digest: 'a'.repeat(64), confirmation: 'SEND_REVIEWED_EMAIL'});
+  assert.deepEqual(calls[0].args, {case_id: 'synthetic-case', draft_id: 'synthetic-draft', expected_digest: 'a'.repeat(64)});
   assert.equal(f.send.disabled, true); assert.match(f.byClass('send-status').textContent, /Accepted by Proton Bridge/);
   f.c.destroy();
 });
 
-test('cancelled approval is informational, leaves draft reviewable, and never retries by itself', async () => {
+test('a legacy no-attempt result leaves the draft available and never retries by itself', async () => {
   const f = fixture({sendResult: () => ({state: 'draft', messages_sent: 0})});
   await f.c.ready; await f.send.onclick();
   assert.equal(f.byClass('send-feedback').hidden, false);
-  assert.match(f.byClass('send-feedback').textContent, /cancelled or expired/);
+  assert.match(f.byClass('send-feedback').textContent, /No send attempt was recorded/);
   assert.equal(f.byClass('send-error').hidden, true);
   assert.equal(f.send.disabled, false); assert.equal(f.calls.filter(x => x.name === 'desk_send_email').length, 1);
   f.c.destroy();
@@ -150,7 +150,7 @@ test('a replaced control still reconciles a returned accepted or uncertain resul
   }
 });
 
-test('explicit pre-approval rejection shows no-send explanation without an uncertainty lock', async () => {
+test('explicit preflight rejection shows no-send explanation without an uncertainty lock', async () => {
   const f = fixture({sendResult: () => {throw Object.assign(Error('Routing review is stale.'), {sendNotStarted: true});}});
   await f.c.ready; await f.send.onclick();
   assert.match(f.byClass('send-status').textContent, /No send was started/);

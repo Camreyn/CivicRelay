@@ -31,7 +31,8 @@ test("tool surface has no arbitrary path, host, password, deletion, attachment e
   assert.equal(send.annotations.readOnlyHint, false);
   assert.equal(send.annotations.idempotentHint, false);
   assert.equal(send.annotations.openWorldHint, true);
-  assert.deepEqual(send.schema.required, ["draft_id", "expected_digest", "confirmation"]);
+  assert.deepEqual(send.schema.required, ["draft_id", "expected_digest"]);
+  assert.equal(Object.hasOwn(send.schema.properties, "confirmation"), false);
   for (const name of ["proton_check_connection", "proton_list_messages", "proton_read_message"]) {
     const read = TOOLS.find(t => t.name === name);
     assert.equal(read.annotations.openWorldHint, true);
@@ -70,6 +71,12 @@ for (const negotiationMode of ["legacy", "auto"]) {
         assert.equal(status.structuredContent.result.network_accessed, false);
       } else {
         assert.equal(status.structuredContent.ok, false);
+      }
+      if (process.platform === 'win32') {
+        const result = await client.callTool({name: 'proton_send_draft', arguments: {
+          draft_id: '00000000-0000-4000-8000-000000000001', expected_digest: 'a'.repeat(64)}});
+        assert.equal(result.structuredContent.ok, false);
+        assert.match(result.structuredContent.error, /not configured|setup|enroll/i);
       }
       for (const [name, args] of [["proton_status", { host: "remote.example" }],
         ["proton_list_messages", { folder: "Trash" }], ["proton_read_message", { uid: 1 }],

@@ -5,3 +5,14 @@
 .case-card h3{margin-top:10px}.state-panel select{min-height:44px}
 .send-controls{border-top:1px solid #d8e1ea;margin-top:16px;padding-top:14px}.send-status{font-size:14px;font-weight:600;line-height:1.5}.send-error{margin-top:10px;padding:10px 12px;border-left:3px solid #bd412f;background:#ffefea;color:#7c2519;font-size:14px;overflow-wrap:anywhere}.send-controls button:disabled{cursor:not-allowed}.send-controls .actions{align-items:flex-start}
 .send-feedback{margin-top:10px;padding:10px 12px;border-left:3px solid #86a7cc;background:#e9f0f7;font-size:14px}
+[hidden]{display:none!important}
+.campaign-toolbar{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:20px 0}.campaign-toolbar select{min-height:44px;max-width:100%}.campaign-toolbar span{font-size:13px;color:#655323}
+.campaign-state{padding:12px 22px 22px;max-height:690px;overflow:auto;overflow-wrap:anywhere}
+.campaign-category{padding:12px 0;border-bottom:1px solid #d8e1ea}.campaign-category p{margin:6px 0}.campaign-source{margin:14px 0;overflow-wrap:anywhere}.campaign-source small{display:block}.campaign-next{font-weight:600}.campaign-status{font-weight:600}
+.state[data-status=not_started] path{fill:#dce3ea;stroke:#c0cbd5}.dot.not_started{background:#dce3ea}
+.state[data-status=researching] path,.state[data-status=requests_prepared] path,.state[data-status=draft_prepared] path{fill:#9dbfe3;stroke:#769abd}.dot.researching,.dot.requests_prepared,.dot.draft_prepared{background:#9dbfe3}
+.state[data-status=awaiting_response] path,.state[data-status=acknowledged] path{fill:#ead17b;stroke:#b8a253}.dot.awaiting_response,.dot.acknowledged{background:#ead17b}
+.state[data-status=new_reply] path{fill:#89c79f;stroke:#5b9c72}.dot.new_reply{background:#89c79f}
+.state[data-status=partial_response] path,.state[data-status=records_received] path{fill:#9fcebc;stroke:#69a58e}.dot.partial_response,.dot.records_received{background:#9fcebc}
+.state[data-status=uncertain] path,.state[data-status=fee_notice] path,.state[data-status=denied] path,.state[data-status=clarification] path,.state[data-status=follow_up] path{fill:#e7a38b;stroke:#be765c}.dot.uncertain,.dot.fee_notice,.dot.denied,.dot.clarification,.dot.follow_up{background:#e7a38b}
+.state[data-status=paused] path,.state[data-status=scoped_review_complete] path{fill:#a8a7c9;stroke:#817f9e}.dot.paused,.dot.scoped_review_complete{background:#a8a7c9}

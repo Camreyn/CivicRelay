@@ -35,6 +35,12 @@ the sibling project without changing enabled tools or approval requirements.
 The standalone project's own ignored `.codex/config.toml` registers only those
 two mail-related servers.
 
+That describes the extraction's original behavior. Version 0.4.0 subsequently
+removes CivicRelay's per-action send, public-issue and local-export dialogs and
+the approval-only tool arguments. It does not change the host's permission
+configuration or migrate private stores. See [setup](SETUP.md) and
+[operator tools](OPERATOR-TOOLS.md) for the current workflow.
+
 Small, ignored forwarding files remain at the two old paths for already-loaded
 MCP sessions and old launch shortcuts. They contain no mailbox data, credentials,
 or second copy of the application. Restart the two mail MCP connections to load
@@ -42,9 +48,19 @@ the direct new paths. Do not launch a detached STDIO server or stop unrelated
 project MCP processes. Remove the shims only after all old sessions/shortcuts
 have been retired and no old worker path is in use.
 
-The app still uses `%LOCALAPPDATA%\CivicResultMaps\...` intentionally. That name
-is an existing data namespace, not a runtime dependency on the old source
-checkout. Do not rename it as a cosmetic cleanup.
+The app still uses `%LOCALAPPDATA%\CivicResultMaps\...` when that legacy
+namespace already contains connector or records data. That name is an existing
+data namespace, not a runtime dependency on the old source checkout. Do not
+rename it as a cosmetic cleanup. Fresh v0.6.0 installations use the separate
+`%LOCALAPPDATA%\CivicRelay\...` namespace. If both contain data, startup fails
+closed rather than selecting, copying, or merging a store.
+
+The source baseline and legacy v1 data are preserved, not automatically
+converted. v1 draft IDs, digests, `From` representation, receipts, and quota
+remain valid under legacy settings. v2 settings add a profile-bound draft
+identity and require current code for v2 drafts. Do not downgrade to older code
+after enrolling v2 settings unless you have reviewed compatibility; do not use
+rollback as a way to re-enroll or reset an account.
 
 ## Preserved research
 
@@ -71,4 +87,6 @@ paths and hashes for local verification; it is not a public artifact.
 Rollback is a reviewed manual operation, not an automatic script. Do not use a
 recursive delete, broad process kill, reset, or database restore to implement it.
 After future schema changes, old application code may no longer support current
-data; assess compatibility before rolling back a later release.
+data; in particular, v2 mailbox settings require code that understands their
+profile-bound draft format. Assess compatibility before rolling back a later
+release.

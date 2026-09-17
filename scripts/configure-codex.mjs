@@ -13,7 +13,7 @@ export function buildMcpConfig(template, values) {
   return template;
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
-  if(process.platform!=='win32') throw Error('This project requires Windows DPAPI and desktop confirmation.');
+  if(process.platform!=='win32') throw Error('This project requires Windows DPAPI and local credential enrollment.');
   if(process.argv.length!==2) throw Error('Run without arguments; existing configurations are never overwritten.');
   const values={ROOT:root,NODE:process.execPath,PYTHON:pythonExecutable(),GH:process.env.RECORDS_DESK_GH||'C:\\Program Files\\GitHub CLI\\gh.exe'};
   const config=buildMcpConfig(fs.readFileSync(new URL('../docs/mcp-config.example.toml',import.meta.url),'utf8'),values);

@@ -1,5 +1,17 @@
 # Using CivicRelay
 
+For a new installation, start with **General records desk** and the
+[general-purpose user guide](GENERAL-USER-GUIDE.md). It covers workspace setup,
+reusable templates, campaigns, federal/local targets and private export.
+The state-map workflows described below are the optional CivicResultMaps
+starter pack and preserved equipment tracker, not a prerequisite for other work.
+
+Use the Workflow selector for the separate [November 2024 equipment and
+communications tracker](EQUIPMENT-CAMPAIGN.md). It includes every state and DC,
+with filters for started states and those not started yet. Source/fee/procedure
+notes appear when you select a state. New campaign drafts need user approval
+before sending; no fees are authorized.
+
 ## Open the workspace
 
 Start `Open CivicRelay.cmd` and use [127.0.0.1:8766](http://127.0.0.1:8766/).
@@ -45,7 +57,8 @@ Request statuses and data gaps do not establish misconduct.
 4. Save privately, then prepare the exact send preview. This creates an immutable
    encrypted local draft; it does not place a message in Proton Drafts or send it.
 5. Review all recipients, body and thread information. When the send status allows
-   it, request sending and complete the independent desktop confirmation yourself.
+   it, click **Send this one email**. It sends directly without another CivicRelay
+   approval window. An authorized assistant can perform the same reviewed action.
 6. Inspect the resulting receipt. “Accepted” means acceptance by local Bridge,
    not confirmed delivery to the recipient. Do not repeatedly click Send after an
    error or a lost response; see [troubleshooting](TROUBLESHOOTING.md).
@@ -81,27 +94,32 @@ an agency's filing requirements. Escalate a channel requirement to the operator.
 1. Capture the returned original attachments for a linked message. The app stores
    the originals encrypted locally with filename, size, hash and provenance.
    It does not execute files, extract archives, load remote images or publish them.
-2. Inspect/review records safely. Use the separately confirmed private export
+2. Inspect/review records safely. Request a private local export
    only when needed for review; an exported ZIP is unredacted and not encrypted
    merely because its source was encrypted.
 3. Prepare the public intake fields: responding office, date/status, filenames,
    records received, remaining gaps and stable public source links where available.
    Remove unnecessary personal details, credentials, signed links and local paths.
-4. Review the exact public preview. Publishing an issue requires its own human
-   confirmation. Selecting/capturing files does not upload those files to GitHub.
+4. Review the exact public preview, then request publication. It creates the public
+   issue without another CivicRelay dialog. Selecting/capturing files does not
+   upload them to GitHub; provide a reviewed public link for selected files.
 5. Verify/link the resulting issue and hand it to normal CivicResultMaps source
    review. A maintainer still must verify, parse, validate and approve any data
    integration. CivicRelay does not perform production imports or Git commits of
    received records.
 
-The records intake repository is `Camreyn/civicresultmaps`. The
-`Camreyn/CivicRelay` issue tracker is for this software's bugs and development.
+The legacy starter pack's records intake repository is `Camreyn/civicresultmaps`.
+Generic requests can use a separately configured [optional destination](INTEGRATIONS.md)
+or stay entirely local. `Camreyn/CivicRelay` is the software's development
+repository, not an automatically selected records destination.
 
 ## Assistant operation
 
 The assistant can use the [operator workflow](OPERATOR-TOOLS.md) and
 [native tool schemas](TOOL-REFERENCE.md) without driving the visible page.
 It must still preserve unsaved human edits, use current revisions, review exact
-previews, and stop for independent human confirmations where required. Opening
-this repository or receiving an agency reply is not blanket authorization for
-external actions.
+previews, and remain within the user's authorized workflow. The user can delegate
+routine actions without approving each message, issue or local export in CivicRelay.
+Assistant-host permission prompts are separate and unchanged. Opening this
+repository or receiving an agency reply is not blanket authorization for external
+actions. There is no built-in scheduler or automatic retry loop.

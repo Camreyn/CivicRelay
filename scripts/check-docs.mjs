@@ -2,6 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {renderToolReference} from './generate-tool-reference.mjs';
+import {TOOLS as deskTools} from '../app/static/tool-contracts.mjs';
+import {TOOLS as mailTools} from '../connector/server.mjs';
 const root=fileURLToPath(new URL('..',import.meta.url));
 const docs=['README.md','AGENTS.md','SECURITY.md',...fs.readdirSync(path.join(root,'docs')).filter(x=>x.endsWith('.md')).map(x=>'docs/'+x)];
 const pkg=JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8'));
@@ -21,4 +23,4 @@ for(const file of docs) {
   }
 }
 if(fs.readFileSync(path.join(root,'docs/TOOL-REFERENCE.md'),'utf8').replaceAll('\r\n','\n')!==renderToolReference()) throw Error('Tool documentation drifted; run npm.cmd run docs:generate and review the changes.');
-console.log(JSON.stringify({ok:true,markdown_files:docs.length,local_links_checked:links,documented_commands_checked:commands,native_tool_schemas:28,network_accessed:false}));
+console.log(JSON.stringify({ok:true,markdown_files:docs.length,local_links_checked:links,documented_commands_checked:commands,native_tool_schemas:deskTools.length+mailTools.length,network_accessed:false}));

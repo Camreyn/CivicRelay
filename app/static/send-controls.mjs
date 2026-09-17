@@ -41,7 +41,7 @@ export function createSendControls({el, op, caseId, draft, notice, onResult, onR
     if (!live()) return;
     send.disabled = true; recheck.disabled = true; reconcile.hidden = false;
     send.textContent = 'Check the saved receipt before retrying';
-    status.textContent = 'The send operation did not return a confirmed outcome. No automatic retry will occur. Check any open confirmation window and Proton Sent.';
+    status.textContent = 'The send operation did not return a confirmed outcome. No automatic retry will occur. Check the saved receipt and Proton Sent.';
     showError(message);
   }
 
@@ -78,8 +78,8 @@ export function createSendControls({el, op, caseId, draft, notice, onResult, onR
       void refreshLimits();
     } else {
       send.disabled = false;
-      send.textContent = 'Review and send this one email';
-      status.textContent = 'Ready for your review. The next step is the required desktop confirmation.';
+      send.textContent = 'Send this one email';
+      status.textContent = 'Ready. Send dispatches this exact draft without another CivicRelay confirmation.';
     }
   }
 
@@ -110,27 +110,27 @@ export function createSendControls({el, op, caseId, draft, notice, onResult, onR
     let dispatched = false;
     try {
       canStart();
-      status.textContent = 'Checking sending limits before opening confirmation…';
+      status.textContent = 'Checking sending limits before dispatch…';
       const latest = await readWindow();
       if (!live()) return;
       window = latest; observedAt = now();
       if (!window.ready) return;
       canStart(); // A person may have edited or navigated during the check.
-      status.textContent = 'Check the desktop confirmation window. Nothing sends unless you approve that exact message.';
-      send.textContent = 'Awaiting your confirmation…';
+      status.textContent = 'Sending this exact draft. Do not repeat Send while its outcome is pending.';
+      send.textContent = 'Sending…';
       dispatched = true;
       const result = await op('desk_send_email', {case_id: caseId, draft_id: draft.draft_id,
-        expected_digest: draft.digest, confirmation: 'SEND_REVIEWED_EMAIL'});
+        expected_digest: draft.digest});
       terminal = result.state !== 'draft';
       const message = result.state === 'accepted'
         ? 'Accepted by Proton Bridge; recipient delivery is not yet confirmed.'
-        : result.state === 'draft' ? 'Approval cancelled or expired. Nothing was sent.'
+        : result.state === 'draft' ? 'No send attempt was recorded. The draft remains available.'
         : `Send state: ${result.state || 'unavailable'}. Check the saved receipt and Proton Sent; do not send again automatically.`;
       notice(message, !['accepted', 'draft'].includes(result.state));
       if (live()) {
         status.textContent = message;
         if (result.state === 'draft') { info.textContent = message; info.hidden = false; }
-        send.textContent = terminal ? 'Send attempt recorded — do not resend' : 'Approval cancelled';
+        send.textContent = terminal ? 'Send attempt recorded — do not resend' : 'No send attempt recorded';
       }
       // A refresh may have replaced this control while the request was pending.
       // Still reconcile by case ID; the workspace preserves edits and selection.
@@ -142,7 +142,7 @@ export function createSendControls({el, op, caseId, draft, notice, onResult, onR
       }
     } catch (e) {
       if (dispatched && e.sendNotStarted !== true) {
-        const warning = `${e.message} The send outcome is unconfirmed. Check the saved receipt, any open confirmation window and Proton Sent; do not repeat Send.`;
+        const warning = `${e.message} The send outcome is unconfirmed. Check the saved receipt and Proton Sent; do not repeat Send.`;
         // Keep the warning even if navigation replaced the originating control.
         notice(warning, true);
         onUnknownOutcome(warning);

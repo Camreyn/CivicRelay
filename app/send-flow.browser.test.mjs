@@ -1,13 +1,13 @@
 // Real browser + actual static app, but synthetic HTTP data only. No private
-// store, Proton connection, desktop approval, or external write is reachable.
+// store, Proton connection, desktop UI, or external write is reachable.
 import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
 import {readFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {chromium} from 'playwright';
 
-const assets = new Map(['index.html', 'app.js', 'workspace.js', 'send-controls.mjs',
-  'style.css', 'status.css', 'tool-contracts.mjs', 'page-tools.mjs', 'map.json']
+const assets = new Map(['index.html', 'app.js', 'workspace.js', 'send-controls.mjs', 'equipment-campaign.js', 'general-workspace.js',
+  'style.css', 'status.css', 'general.css', 'general-contracts.mjs', 'tool-contracts.mjs', 'page-tools.mjs', 'map.json']
   .map(name => ['/' + (name === 'index.html' ? '' : name), name]));
 const geometry = JSON.parse(await readFile(new URL('./static/map.json', import.meta.url)));
 const base = {id: 'synthetic-case', revision: 1, state: 'IN', state_name: 'Indiana',
@@ -18,9 +18,9 @@ const base = {id: 'synthetic-case', revision: 1, state: 'IN', state_name: 'India
   note: 'Synthetic fixture only.', request_ids: ['TEST-REQUEST'], custodian: 'Synthetic Office',
   portal_url: 'https://example.gov', lookup_url: 'https://example.gov',
   routing_notes: 'No real custodian or mailbox is used by this test.', catalog_date: '2026-09-09'};
-let record, draft, mode = 'cooldown', outcome = 'cancel', until = null, sendCalls = 0, statusCalls = 0;
+let record, draft, mode = 'cooldown', outcome = 'not_started', until = null, sendCalls = 0, statusCalls = 0;
 let releaseSend = null;
-function reset(nextMode = 'ready', nextOutcome = 'cancel') {
+function reset(nextMode = 'ready', nextOutcome = 'not_started') {
   record = structuredClone(base); mode = nextMode; outcome = nextOutcome; until = null; releaseSend = null;
   draft = {draft_id: '00000000-0000-4000-8000-000000000001', digest: 'a'.repeat(64),
     state: 'draft', to: [record.recipient], from: 'synthetic@example.test',
@@ -50,11 +50,11 @@ const server = createServer(async (req, res) => {
       if (tool === 'desk_send_email') {
         sendCalls++;
         assert.equal(args.draft_id, draft.draft_id); assert.equal(args.expected_digest, draft.digest);
-        assert.equal(args.confirmation, 'SEND_REVIEWED_EMAIL');
-        if (outcome === 'preflight') return json(res, {ok: false, send_not_started: true, error: 'Synthetic routing review is stale. No approval opened.'});
+        assert.equal(Object.hasOwn(args, 'confirmation'), false);
+        if (outcome === 'preflight') return json(res, {ok: false, send_not_started: true, error: 'Synthetic routing review is stale. No send started.'});
         if (outcome === 'deferred') await new Promise(resolve => {releaseSend = resolve;});
         if (outcome === 'error') return json(res, {ok: false, error: 'Synthetic transport failure. Check saved receipts before retrying.'});
-        const state = outcome === 'cancel' ? 'draft' : outcome === 'uncertain' ? 'uncertain' : 'accepted';
+        const state = outcome === 'not_started' ? 'draft' : outcome === 'uncertain' ? 'uncertain' : 'accepted';
         draft.state = state;
         if (state !== 'draft') draft.receipt = {meaning: state === 'accepted'
           ? 'Accepted by local Proton Bridge; recipient delivery is not verified.'
@@ -81,6 +81,7 @@ try {
   const page = await browser.newPage({viewport: {width: 1440, height: 1100}});
   page.on('pageerror', e => errors.push(e.message));
   page.on('console', m => {if (m.type() === 'error') errors.push(m.text());});
+  page.on('dialog', async dialog => {errors.push('Unexpected browser dialog: ' + dialog.type()); await dialog.dismiss();});
   // Deny every non-fixture network request, even if a future UI change tries one.
   await page.route('**/*', route => route.request().url().startsWith(origin + '/') ? route.continue() : route.abort());
   async function open() {
@@ -122,7 +123,7 @@ try {
 
   reset(); await open(); await send.click();
   await page.locator('.send-feedback:not([hidden])').waitFor();
-  assert.match(await page.locator('.send-feedback').innerText(), /cancelled or expired/);
+  assert.match(await page.locator('.send-feedback').innerText(), /No send attempt was recorded/);
   assert.equal(sendCalls, 1); assert.equal(await page.locator('.send-error').isVisible(), false);
 
   reset('ready', 'error'); await open(); await send.click();
@@ -173,10 +174,10 @@ try {
   assert.deepEqual(errors, []);
   console.log(JSON.stringify({ok: true, browser: 'Chromium', synthetic_only: true,
     real_messages_sent: 0, synthetic_send_calls: sendCalls, local_status_checks: statusCalls,
-    checks: ['countdown', 'no auto-send at expiry', 'daily quota', 'disabled connector', 'cancellation feedback', 'inline error',
+    checks: ['countdown', 'no auto-send at expiry', 'daily quota', 'disabled connector', 'legacy no-attempt feedback', 'inline error',
       'single immutable send', 'receipt reload', 'unsaved edits preserved', 'uncertain state locked',
-      'replaced pane reconciles accepted and uncertain results', 'pre-approval rejection is not an uncertain send',
-      'unknown outcome warning survives pane navigation', 'no console errors'],
+      'replaced pane reconciles accepted and uncertain results', 'preflight rejection is not an uncertain send',
+      'unknown outcome warning survives pane navigation', 'no confirmation arguments or browser dialogs', 'no console errors'],
     screenshots: ['send-flow-cooldown.png', 'send-flow-inline-error.png']}));
 } finally {
   if (browser) await browser.close();

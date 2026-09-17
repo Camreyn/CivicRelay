@@ -1,5 +1,6 @@
 """Synthetic-only regression tests: never use real mail, account secrets, or GitHub writes."""
 from contextlib import contextmanager
+from concurrent.futures import ThreadPoolExecutor
 from email.message import EmailMessage
 from pathlib import Path
 from types import SimpleNamespace
@@ -8,6 +9,7 @@ import copy
 import hashlib
 import http.client
 import json
+import sys
 import tempfile
 import threading
 import time
@@ -73,6 +75,7 @@ class DeskTests(unittest.TestCase):
     def test_workflow_returns_exact_form_and_no_private_database_write(self):
         r=self.call('desk_get_workflow')
         self.assertEqual(r['intake'],self.catalog['issue']);self.assertEqual(len(r['states']),51)
+        self.assertFalse(r['requires_desktop_confirmation'])
         self.assertFalse(r['network_accessed']);self.assertFalse(r['production_import'])
         self.assertFalse(self.db.root.exists())
     def test_saved_header_pagination_filters_and_excludes_bodies(self):
@@ -127,15 +130,15 @@ class DeskTests(unittest.TestCase):
     def test_draft_is_immutable_and_deduplicated(self):
         self.ready_case();one=self.call('desk_prepare_email',case_id=self.case_id)['draft'];two=self.call('desk_prepare_email',case_id=self.case_id)['draft']
         self.assertEqual(one['draft_id'],two['draft_id']);self.assertEqual(one['state'],'draft')
-    def test_cancelled_send_never_authenticates_or_sends(self):
+    def test_legacy_approval_argument_is_rejected_before_smtp(self):
         self.ready_case();d=self.call('desk_prepare_email',case_id=self.case_id)['draft']
-        with patch('desktop.confirm_send',return_value=False),patch('bridge.smtp_connection',side_effect=AssertionError('Network forbidden')):
-            r=self.call('desk_send_email',case_id=self.case_id,draft_id=d['draft_id'],expected_digest=d['digest'],confirmation='SEND_REVIEWED_EMAIL')
-        self.assertEqual(r['messages_sent'],0);self.assertEqual(self.store.get_draft(d['draft_id'])['state'],'draft')
+        with patch('bridge.smtp_connection',side_effect=AssertionError('Network forbidden')),self.assertRaises(ConnectorError):
+            self.call('desk_send_email',case_id=self.case_id,draft_id=d['draft_id'],expected_digest=d['digest'],confirmation='SEND_REVIEWED_EMAIL')
+        self.assertEqual(self.store.get_draft(d['draft_id'])['state'],'draft')
     def test_send_preflight_marker_for_stale_content_and_connector_checks(self):
         self.ready_case();d=self.call('desk_prepare_email',case_id=self.case_id)['draft']
-        args=dict(case_id=self.case_id,draft_id=d['draft_id'],expected_digest=d['digest'],confirmation='SEND_REVIEWED_EMAIL')
-        with patch('desktop.confirm_send',side_effect=AssertionError('Approval forbidden')),patch('bridge.smtp_connection',side_effect=AssertionError('Network forbidden')):
+        args=dict(case_id=self.case_id,draft_id=d['draft_id'],expected_digest=d['digest'])
+        with patch('bridge.smtp_connection',side_effect=AssertionError('Network forbidden')):
             bad_digest=safe_dispatch('desk_send_email',{**args,'expected_digest':'0'*64},self.service)
             self.assertFalse(bad_digest['ok']);self.assertTrue(bad_digest['send_not_started'])
             with patch.object(self.store,'send_window',return_value={'ready':False,'retry_after_seconds':60}):
@@ -145,10 +148,10 @@ class DeskTests(unittest.TestCase):
             stale=safe_dispatch('desk_send_email',args,self.service)
             self.assertFalse(stale['ok']);self.assertTrue(stale['send_not_started'])
         self.assertEqual(self.store.get_draft(d['draft_id'])['state'],'draft')
-    def test_post_approval_and_receipt_failures_are_not_marked_preflight(self):
+    def test_atomic_claim_and_receipt_failures_are_not_marked_preflight(self):
         self.ready_case();d=self.call('desk_prepare_email',case_id=self.case_id)['draft']
-        args=dict(case_id=self.case_id,draft_id=d['draft_id'],expected_digest=d['digest'],confirmation='SEND_REVIEWED_EMAIL')
-        with patch('desktop.confirm_send',return_value=True),patch.object(self.store,'claim_send',side_effect=ConnectorError('Synthetic concurrent attempt')),patch('bridge.smtp_connection',side_effect=AssertionError('Network forbidden')):
+        args=dict(case_id=self.case_id,draft_id=d['draft_id'],expected_digest=d['digest'])
+        with patch.object(self.store,'claim_send',side_effect=ConnectorError('Synthetic concurrent attempt')),patch('bridge.smtp_connection',side_effect=AssertionError('Network forbidden')):
             race=safe_dispatch('desk_send_email',args,self.service)
         self.assertFalse(race['ok']);self.assertNotIn('send_not_started',race)
         with patch('connector.dispatch',return_value={'state':'accepted'}),patch.object(self.service,'reconcile_sends',side_effect=ConnectorError('Synthetic receipt refresh failure')):
@@ -159,8 +162,8 @@ class DeskTests(unittest.TestCase):
         smtp=SimpleNamespace(mail=lambda _: (250,b''),rcpt=lambda _:(250,b''),data=lambda b:(wire.append(b) or (250,b'')))
         @contextmanager
         def connection(_):yield smtp
-        args=dict(case_id=self.case_id,draft_id=d['draft_id'],expected_digest=d['digest'],confirmation='SEND_REVIEWED_EMAIL')
-        with patch('desktop.confirm_send',return_value=True),patch('bridge.smtp_connection',connection):
+        args=dict(case_id=self.case_id,draft_id=d['draft_id'],expected_digest=d['digest'])
+        with patch.dict(sys.modules,{'desktop':None,'tkinter':None}),patch('bridge.smtp_connection',connection):
             self.assertEqual(self.call('desk_send_email',**args)['state'],'accepted')
             with self.assertRaises(ConnectorError):self.call('desk_send_email',**args)
         self.assertEqual(len(wire),1);self.assertEqual(self.service.case(self.case_id)['stage'],'waiting')
@@ -213,17 +216,37 @@ class DeskTests(unittest.TestCase):
     def test_reassigned_artifact_blocks_publication(self):
         artifact,issue=self.captured_issue();artifact['case_id']='different-case';self.db.put('artifact',artifact['id'],artifact)
         with self.assertRaises(ConnectorError):intake.require_prepared(self.db,issue['id'],issue['digest'],self.catalog)
-    def test_export_requires_approval_and_uses_safe_zip_entries(self):
+    def test_export_has_no_dialog_and_uses_safe_zip_entries(self):
         artifact,issue=self.captured_issue()
-        self.assertFalse(intake.export_package(self.db,issue,confirm=lambda *_:False)['exported'])
-        self.assertFalse((self.db.root/'Exports').exists())
-        result=intake.export_package(self.db,issue,confirm=lambda *_:True);target=Path(result['path'])
+        with patch.dict(sys.modules,{'approval':None,'tkinter':None}):
+            result=self.call('desk_export_package',issue_id=issue['id'])
+        target=Path(result['path'])
         self.assertTrue(target.is_relative_to(self.db.root/'Exports'));self.assertFalse(result['publicly_uploaded'])
         with zipfile.ZipFile(target) as archive:
             for name in archive.namelist():self.assertNotIn('..',Path(name).parts)
             entries=[n for n in archive.namelist() if n.startswith('files/')];self.assertEqual(len(entries),1)
             self.assertEqual(archive.read(entries[0]),b'one,two\n1,2\n')
         self.assertFalse(list(target.parent.glob('*.partial')))
+    def test_export_rejects_changed_preview_before_creating_plaintext(self):
+        _,issue=self.captured_issue();issue['body']='Changed after preparation';self.db.put('issue',issue['id'],issue)
+        with self.assertRaisesRegex(ConnectorError,'snapshot identity changed'):
+            self.call('desk_export_package',issue_id=issue['id'])
+        self.assertFalse((self.db.root/'Exports').exists())
+    def test_export_rejects_reassigned_artifact_before_creating_plaintext(self):
+        artifact,issue=self.captured_issue();artifact['case_id']='different-case';self.db.put('artifact',artifact['id'],artifact)
+        with self.assertRaisesRegex(ConnectorError,'reassigned or changed'):
+            self.call('desk_export_package',issue_id=issue['id'])
+        self.assertFalse((self.db.root/'Exports').exists())
+    def test_publish_private_artifacts_without_public_link_still_blocked(self):
+        _,issue=self.captured_issue()
+        with patch('intake.run',side_effect=AssertionError('Network forbidden')),self.assertRaisesRegex(ConnectorError,'private, not uploaded'):
+            self.call('desk_publish_intake',issue_id=issue['id'],expected_digest=issue['digest'])
+        self.assertEqual(self.db.get('issue',issue['id'])['state'],'prepared')
+    def test_legacy_publish_approval_argument_is_rejected(self):
+        issue=self.prepare_issue()
+        with patch('intake.run',side_effect=AssertionError('Network forbidden')),self.assertRaises(ConnectorError):
+            self.call('desk_publish_intake',issue_id=issue['id'],expected_digest=issue['digest'],confirmation='PUBLISH_PUBLIC_RECORDS_ISSUE')
+        self.assertEqual(self.db.get('issue',issue['id'])['state'],'prepared')
     def test_intake_rejects_private_paths_credentials_bidi(self):
         for value in ['C:\\Users\\someone\\private.csv','password=private-marker','text\u202etest']:
             fields=self.fields();fields['response_summary']=value
@@ -236,24 +259,44 @@ class DeskTests(unittest.TestCase):
         issue=self.prepare_issue();again=self.prepare_issue();self.assertEqual(issue['id'],again['id'])
         for label in ['State or jurisdiction','Responding office or custodian','Response status','Responsible records checklist']:self.assertIn('### '+label,issue['body'])
         self.assertIn('template=records-response.yml',issue['form_url']);self.assertEqual(issue['labels'],['records-request','data-review'])
-    def test_issue_cancelled_no_publication(self):
+    def test_issue_digest_mismatch_prevents_publication(self):
         issue=self.prepare_issue()
-        r=intake.publish(self.db,self.catalog,issue['id'],issue['digest'],confirm=lambda *_:False,runner=lambda *a,**k:(_ for _ in ()).throw(AssertionError('Network forbidden')))
-        self.assertFalse(r['published']);self.assertEqual(r['state'],'prepared')
+        with self.assertRaises(ConnectorError):
+            intake.publish(self.db,self.catalog,issue['id'],'0'*64,runner=lambda *a,**k:(_ for _ in ()).throw(AssertionError('Network forbidden')))
+        self.assertEqual(self.db.get('issue',issue['id'])['state'],'prepared')
     def test_uncertain_issue_cannot_be_reissued(self):
         issue=self.prepare_issue();calls=[]
         def fail(*a,**k):calls.append(1);raise TimeoutError()
-        r=intake.publish(self.db,self.catalog,issue['id'],issue['digest'],confirm=lambda *_:True,runner=fail)
+        r=intake.publish(self.db,self.catalog,issue['id'],issue['digest'],runner=fail)
         self.assertEqual(r['state'],'uncertain')
         with self.assertRaises(ConnectorError):self.prepare_issue()
-        with self.assertRaises(ConnectorError):intake.publish(self.db,self.catalog,issue['id'],issue['digest'],confirm=lambda *_:True,runner=fail)
+        with self.assertRaises(ConnectorError):intake.publish(self.db,self.catalog,issue['id'],issue['digest'],runner=fail)
         self.assertEqual(len(calls),1)
     def test_issue_success_receipt_and_no_duplicate_publication(self):
         issue=self.prepare_issue();commands=[]
         def runner(args,**kwargs):commands.append((args,kwargs));return SimpleNamespace(returncode=0,stdout=json.dumps({'html_url':'https://github.com/Camreyn/civicresultmaps/issues/123'}).encode())
-        r=intake.publish(self.db,self.catalog,issue['id'],issue['digest'],confirm=lambda *_:True,runner=runner)
+        with patch.dict(sys.modules,{'approval':None,'tkinter':None}),patch('intake.GH',sys.executable),patch('intake.run',runner):
+            r=self.call('desk_publish_intake',issue_id=issue['id'],expected_digest=issue['digest'])
         self.assertTrue(r['published']);self.assertEqual(len(commands),1);self.assertIn('--input',commands[0][0]);self.assertNotIn(issue['body'],commands[0][0])
-        with self.assertRaises(ConnectorError):intake.publish(self.db,self.catalog,issue['id'],issue['digest'],confirm=lambda *_:True,runner=runner)
+        with self.assertRaises(ConnectorError):intake.publish(self.db,self.catalog,issue['id'],issue['digest'],runner=runner)
+    def test_concurrent_issue_publication_makes_only_one_remote_request(self):
+        issue=self.prepare_issue();started=threading.Event();release=threading.Event();calls=[]
+        other=Service(Database(self.db.root,TestProtector()),copy.deepcopy(self.catalog),self.store)
+        args={'issue_id':issue['id'],'expected_digest':issue['digest']}
+        def runner(*a,**k):
+            calls.append(1);started.set()
+            if not release.wait(5):raise TimeoutError('Synthetic test release timed out')
+            return SimpleNamespace(returncode=0,stdout=json.dumps({'html_url':'https://github.com/Camreyn/civicresultmaps/issues/123'}).encode())
+        with patch('intake.GH',sys.executable),patch('intake.run',runner),ThreadPoolExecutor(max_workers=1) as pool:
+            pending=pool.submit(self.call,'desk_publish_intake',**args)
+            try:
+                self.assertTrue(started.wait(5))
+                with self.assertRaisesRegex(ConnectorError,'Another records operation'):
+                    other.dispatch('desk_publish_intake',args)
+            finally:release.set()
+            self.assertEqual(pending.result(timeout=5)['state'],'published')
+            with self.assertRaises(ConnectorError):other.dispatch('desk_publish_intake',args)
+        self.assertEqual(calls,[1]);self.assertEqual(self.db.get('issue',issue['id'])['state'],'published')
     def test_weak_issue_match_rejected(self):
         issue=self.prepare_issue()
         def runner(*a,**k):return SimpleNamespace(returncode=0,stdout=json.dumps({'title':issue['title'],'body':'Somewhere Indiana (IN) '+issue['fields']['request_id'],'labels':[{'name':n} for n in issue['labels']]}).encode())
@@ -277,6 +320,7 @@ class HttpTests(unittest.TestCase):
         try:
             code,_,body=request('/health');health=json.loads(body)
             self.assertEqual(code,200);self.assertEqual(health['distribution'],'civic-records-desk')
+            self.assertEqual(health['package_version'],'0.6.0');self.assertEqual(health['tooling_version'],'0.6.0')
             self.assertEqual(health['installation_id'],hashlib.sha256(str(server.ROOT.parent).lower().encode()).hexdigest())
             self.assertEqual(request(headers={'Host':'attacker.example'})[0],403)
             self.assertEqual(request('/api/bootstrap')[0],403)
@@ -289,6 +333,12 @@ class HttpTests(unittest.TestCase):
                 self.assertEqual(request('/api/operation',{'Cookie':cookie,'Content-Type':'application/json'},'POST',payload)[0],403)
                 self.assertEqual(request('/api/operation',{'Cookie':cookie,'Content-Type':'application/json','X-Records-Desk':'1','Origin':server.ORIGIN},'POST',payload)[0],200)
                 self.assertEqual(mocked.call_count,2)
+                for name,args in [('desk_send_email',{'case_id':'synthetic-case','draft_id':'synthetic-draft','expected_digest':'a'*64}),
+                                  ('desk_publish_intake',{'issue_id':'synthetic-issue','expected_digest':'a'*64}),
+                                  ('desk_export_package',{'issue_id':'synthetic-issue'})]:
+                    payload=json.dumps({'tool':name,'arguments':args})
+                    self.assertEqual(request('/api/operation',{'Cookie':cookie,'Content-Type':'application/json','X-Records-Desk':'1','Origin':server.ORIGIN},'POST',payload)[0],200)
+                    mocked.assert_called_with(name,args)
         finally:httpd.shutdown();httpd.server_close();thread.join();server.PORT,server.ORIGIN=original
 
 if __name__=='__main__':unittest.main(verbosity=2)

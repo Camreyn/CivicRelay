@@ -1,4 +1,4 @@
-"""Shared operations used by HTTP, CLI, and MCP. External writes always require desktop review."""
+"""Shared operations used by HTTP, CLI, and MCP; no per-action approval dialogs."""
 from __future__ import annotations
 from datetime import datetime,timezone
 from email.utils import parseaddr
@@ -13,8 +13,16 @@ import bridge
 import connector
 import intake
 import mailbox
+import equipment
+import general
+import templates
+import integrations
 
 ARGUMENTS={
+ 'desk_get_equipment_campaign':{'state'},
+ 'desk_create_equipment_request':{'state','jurisdiction','jurisdiction_level'},
+ 'desk_save_equipment_state':{'state','revision','phase','scope_note','next_action','sources','coverage'},
+ 'desk_save_equipment_progress':{'case_id','revision','response_stage','response_message_id','note','fee_note','procedure_note','deadline_date','deadline_kind','deadline_source','deadline_basis','deadline_checked_date'},
  'desk_status':set(),'desk_list_cases':set(),'desk_get_case':{'case_id','before_message_id','artifact_offset'},
  'desk_get_workflow':set(),'desk_get_intake':{'issue_id'},
  'desk_list_messages':{'case_id','folder','before_message_id','limit','unreviewed_only'},
@@ -23,13 +31,22 @@ ARGUMENTS={
  'desk_read_message':{'message_id'},'desk_link_message':{'message_id','case_id'},
  'desk_mark_reviewed':{'message_id'},'desk_capture_attachments':{'message_id'},
  'desk_prepare_email':{'case_id','reply_message_id'},
- 'desk_send_email':{'case_id','draft_id','expected_digest','confirmation'},
+ 'desk_send_email':{'case_id','draft_id','expected_digest'},
  'desk_prepare_intake':{'case_id','fields','artifact_ids'},
- 'desk_publish_intake':{'issue_id','expected_digest','confirmation'},
+ 'desk_publish_intake':{'issue_id','expected_digest'},
  'desk_export_package':{'issue_id'},'desk_link_issue':{'issue_id','url'},
  'desk_record_portal':{'case_id','tracking_reference','submitted_date','note'},
 }
-READ_ONLY={'desk_status','desk_list_cases','desk_get_case','desk_get_workflow','desk_list_messages','desk_get_intake'}
+ARGUMENTS |= {
+ 'desk_get_workspace':set(), 'desk_save_workspace':{'revision','name','organization','signature','requester_name','requester_address','requester_phone','starter_pack'},
+ 'desk_list_templates':set(), 'desk_get_template':{'template_id'}, 'desk_save_template':{'template_id','revision','definition'},
+ 'desk_preview_template':{'template_id','values'}, 'desk_export_template':{'template_id'}, 'desk_import_template':{'definition'},
+ 'desk_list_campaigns':set(), 'desk_save_campaign':{'campaign_id','revision','name','description','template_id','date_start','date_end','targets'},
+ 'desk_create_request':{'campaign_id','template_id','target_id','agency','values'},
+ 'desk_save_request_progress':{'case_id','revision','response_stage','response_message_id','coverage','note','fee_note','procedure_note','deadline_date','deadline_kind','deadline_source','deadline_basis','deadline_checked_date'},
+} | integrations.ARGUMENTS
+READ_ONLY={'desk_status','desk_list_cases','desk_get_case','desk_get_workflow','desk_list_messages','desk_get_intake','desk_get_equipment_campaign',
+           'desk_get_workspace','desk_list_templates','desk_get_template','desk_preview_template','desk_export_template','desk_list_campaigns'} | integrations.READ_ONLY
 
 STATUS_LABELS={'none':'No prepared request','routing':'Routing needed','draft':'Draft',
  'waiting':'Awaiting reply','new':'New reply','attention':'Action needed',
@@ -54,6 +71,10 @@ class Service:
                 'status':'routing','created_at':time.time()}
     def save(self,c):
         c['revision']+=1;c['updated_at']=time.time();self.db.put('case',c['id'],c)
+    def template(self,c):
+        if c.get('campaign_id')==equipment.ID:return equipment.current_base(self,c)
+        if c.get('general_campaign_id'):return c['base']
+        return next((x for x in self.catalog['cases'] if x['id']==c['base']['id']),None)
     def mails(self,case_id=None):
         return sorted([m for m in self.db.all('mail') if case_id is None or m.get('case_id')==case_id],key=lambda m:(m['synced_at'],m['id']),reverse=True)
     def view_case(self,c,allmail=None):
@@ -61,18 +82,26 @@ class Service:
         unread=[m for m in mails if m['folder']=='INBOX' and not m.get('read_in_desk')]
         status='new' if unread else ('routing' if c['stage']=='draft' and not c['routing_verified'] else c['stage'])
         current={k:v for k,v in c.items() if k!='base'}
-        base=next((x for x in self.catalog['cases'] if x['id']==c['base']['id']),None)
+        base=self.template(c)
         current.update(status=status,unread_count=len(unread),mail_count=len(mails),catalog_drift=not base or base!=c['base'])
+        if c.get('general_campaign_id'):
+            issues=[self.db.get('issue',key) for key in c.get('issues',[])]
+            states={x.get('state') for x in issues if x}
+            current['publication_status']='uncertain' if 'uncertain' in states else 'published' if 'published' in states else 'prepared' if states else 'none'
         return current
     def listing(self):
         stored=self.db.all('case');ids={x['id'] for x in stored}
-        cases=stored+[self.case(x['id']) for x in self.catalog['cases'] if x['id'] not in ids]
+        workspace=general.get_workspace(self)['workspace']
+        catalog_cases=self.catalog['cases'] if workspace['starter_pack']=='civicresultmaps' else []
+        cases=stored+[self.case(x['id']) for x in catalog_cases if x['id'] not in ids]
         messages=self.mails()
         summaries=[{k:v for k,v in self.view_case(c,messages).items() if k not in ('body','requests')} for c in sorted(cases,key=lambda c:(c['state'],c['id']))]
         return {'catalog':{**self.catalog,'cases':summaries},
                 'unassigned':[{k:v for k,v in m.items() if k not in ('body','attachments','raw_blob_id')} for m in messages if not m.get('case_id')][:200],
                 'unassigned_total':sum(not m.get('case_id') for m in messages),'sync':self.db.all('sync'),
-                'private_storage':str(self.db.root),'email':connector.PROJECT_EMAIL}
+                'private_storage':str(self.db.root),'email':connector.account_summary(self.mail_store).get('email') or '',
+                'workspace':workspace,'equipment_campaign':equipment.overview(self),
+                'destinations':integrations.list_destinations(self)['destinations']}
     def detail(self,key,before_message_id=None,artifact_offset=0):
         c=self.case(key)
         drafts=[]
@@ -131,26 +160,63 @@ class Service:
         for c in self.db.all('case'):
             if not c['drafts']:continue
             d=self.mail_store.get_draft(c['drafts'][-1])
+            if (c.get('campaign_id')==equipment.ID or c.get('general_campaign_id')) and d['state']=='accepted' and not equipment.valid_receipt(d):
+                if c.get('latest_send_state')!='receipt_invalid':
+                    c.update(stage='attention',latest_send_state='receipt_invalid');self.save(c)
+                continue
             if c.get('latest_send_state')==d['state']:continue
             c['latest_send_state']=d['state']
             if d['state']=='accepted':c.update(stage='waiting',last_sent_at=d['receipt']['accepted_at'])
             elif d['state'] not in ('draft',):c['stage']='attention'
             self.save(c)
     def _dispatch(self,name,args):
+        if name in integrations.ARGUMENTS:return integrations.dispatch(self,name,args)
+        if name=='desk_get_workspace':return general.get_workspace(self)
+        if name=='desk_save_workspace':return general.save_workspace(self,args)
+        if name=='desk_list_templates':return templates.list_templates(self)
+        if name=='desk_get_template':return {'template':templates.get(self,args.get('template_id'))}
+        if name=='desk_save_template':return templates.save(self,args)
+        if name=='desk_preview_template':
+            record=templates.get(self,args.get('template_id')); snapshot=record['versions'][-1]
+            values=general.render_values(self,snapshot['definition'],args.get('values',{}))
+            return {'template_id':record['id'],'version':snapshot['version'],'hash':snapshot['hash'],
+                    'rendered':templates.render(snapshot['definition'],values),'missing_fields':[]}
+        if name=='desk_export_template':return templates.export(self,args.get('template_id'))
+        if name=='desk_import_template':return templates.save(self,{'definition':args.get('definition')},imported=True)
+        if name=='desk_list_campaigns':return general.list_campaigns(self)
+        if name=='desk_save_campaign':return general.save_campaign(self,args)
+        if name=='desk_create_request':return general.create_request(self,args)
+        if name=='desk_save_request_progress':return general.save_request_progress(self,args)
+        if name=='desk_get_equipment_campaign':return equipment.overview(self,args.get('state'))
+        if name=='desk_create_equipment_request':return equipment.create_request(self,args)
+        if name=='desk_save_equipment_state':return equipment.update_state(self,args)
+        if name=='desk_save_equipment_progress':return equipment.update_request(self,args)
         if name=='desk_status':
             s=connector.dispatch('proton_status',{},self.mail_store)
-            return {'connector':s,'private_storage':str(self.db.root),'catalog_requests':len(self.catalog['cases']),'tooling_version':'0.2.0',
+            return {'connector':s,'private_storage':str(self.db.root),'catalog_requests':len(self.catalog['cases']),'tooling_version':'0.6.0',
                     'dashboard_url':'http://127.0.0.1:8766/','issue_repository':intake.REPOSITORY,
-                    'approval':'Every send/public issue requires an independent local human window.',
+                    'approval':'No CivicRelay per-action approval dialogs; host permissions remain separate.',
+                    'requires_desktop_confirmation':False,
                     'sync':self.db.all('sync'),'automatic_polling':False}
         if name=='desk_list_cases':return self.listing()
         if name=='desk_get_workflow':
             return {'states':self.catalog['states'],'status_labels':STATUS_LABELS,'intake':self.catalog['issue'],
-                    'catalog_sha256':self.catalog['sha256'],'sender':connector.PROJECT_EMAIL,
+                    'catalog_sha256':self.catalog['sha256'],'sender':connector.account_summary(self.mail_store).get('email') or '',
+                    'general_workflow':{
+                        'workspace_tools':['desk_get_workspace','desk_save_workspace'],
+                        'template_tools':['desk_list_templates','desk_get_template','desk_save_template','desk_preview_template','desk_export_template','desk_import_template'],
+                        'campaign_tools':['desk_list_campaigns','desk_save_campaign','desk_create_request','desk_save_request_progress'],
+                        'publication_tools':['desk_list_destinations','desk_save_destination','desk_prepare_publication','desk_publish_intake','desk_link_issue'],
+                        'local_export_tool':'desk_export_case','github_required':False,
+                        'new_request_template_version':'Latest active version, frozen when the request is created.',
+                        'legacy_intake_note':'The intake field describes only the optional CivicResultMaps starter pack. Generic requests require an explicit configured destination.',
+                        'private_profile_note':'Optional personal fields are inserted only through explicitly required matching template fields. Review literal template exports before sharing.'},
+                    'equipment_campaign':{'id':equipment.ID,'categories':equipment.CATEGORIES,'phases':equipment.PHASES,
+                        'policy':equipment.POLICY,'tools':['desk_get_equipment_campaign','desk_create_equipment_request','desk_save_equipment_state','desk_save_equipment_progress']},
                     'steps':[
                         {'task':'Inspect requests and route using current official sources','tools':['desk_list_cases','desk_get_case','desk_save_case','desk_clone_case']},
                         {'task':'Prepare exact correspondence; optional message ID preserves reply/follow-up chain','tools':['desk_prepare_email'],'sends':False},
-                        {'task':'Send one explicitly reviewed email with desktop human approval','tools':['desk_send_email']},
+                        {'task':'Send one exact prepared email within the authorized workflow; no desktop dialog','tools':['desk_send_email']},
                         {'task':'Check headers, review/assign mail and capture returned originals privately','tools':['desk_sync_mail','desk_list_messages','desk_read_message','desk_link_message','desk_mark_reviewed','desk_capture_attachments']},
                         {'task':'Prepare reviewed/redacted public intake; read back exact preview','tools':['desk_prepare_intake','desk_get_intake'],'publishes':False},
                         {'task':'Publish one reviewed issue or verify/link a manually submitted issue','tools':['desk_publish_intake','desk_link_issue']},
@@ -158,8 +224,8 @@ class Service:
                         {'task':'Record an existing agency portal receipt; does not submit a portal','tools':['desk_record_portal']}],
                     'limits':{'header_sync_per_folder':80,'send_attempts_per_day':10,'minimum_send_interval_seconds':60,
                               'body_preview_characters':20000,'automatic_polling':False},
-                    'human_only':['Independent approval windows for send, public issue and unredacted export',
-                                  'Agency-portal submission and reviewed private-attachment upload are not implemented by this connector'],
+                    'requires_desktop_confirmation':False,
+                    'human_only':['Agency-portal submission and reviewed private-attachment upload are not implemented by this connector'],
                     'production_import':False,'network_accessed':False}
         if name=='desk_list_messages':return self.message_listing(args)
         if name=='desk_get_intake':
@@ -180,6 +246,8 @@ class Service:
             c['routing_verified']=args['routing_verified']
             if c['routing_verified'] and (not c['recipient'] or not c['routing_evidence']):raise ConnectorError('Verified routing needs an email address and an official contact source or verification note.')
             c['verified_catalog_sha256']=self.catalog['sha256'] if c['routing_verified'] else None
+            if c.get('general_campaign_id'):
+                c['verified_template_hash']=c['template_snapshot']['hash'] if c['routing_verified'] else None
             c['routing_verified_at']=time.time() if c['routing_verified'] else None
             stage=args.get('stage',c['stage'])
             if stage not in ('draft','waiting','attention','ready','submitted','closed'):raise ConnectorError('Invalid case stage.')
@@ -188,6 +256,8 @@ class Service:
             return {'case':self.view_case(c),'messages_sent':0}
         if name=='desk_clone_case':
             source=self.case(args.get('case_id'))
+            if source.get('campaign_id')==equipment.ID:
+                raise ConnectorError('Use desk_create_equipment_request with an explicit state/county/municipality scope for this campaign.')
             base=next((x for x in self.catalog['cases'] if x['id']==source['base']['id']),None)
             if not base:raise ConnectorError('The source template is no longer in the current catalog.')
             label=connector.clean_text(args.get('label'),120)
@@ -224,14 +294,25 @@ class Service:
                 if c['stage'] not in ('ready','submitted','closed'):c['stage']='attention';self.save(c)
             return {'message':m,'proton_read_flag_changed':False}
         if name=='desk_link_message':
-            m=self.message(args.get('message_id'));case_id=args.get('case_id')
+            m=self.message(args.get('message_id'));case_id=args.get('case_id');progress_reset=False
+            previous_case_id=m.get('case_id')
+            if previous_case_id and case_id != previous_case_id:
+                previous=self.case(previous_case_id)
+                tracking=previous.get('tracking') if isinstance(previous.get('tracking'),dict) else {}
+                if tracking.get('response_message_id')==m['id']:
+                    # Unassigning the evidence invalidates the response stage,
+                    # but notes and the separately audited coverage remain.
+                    previous['tracking']={**tracking,'response_stage':'none','response_message_id':''}
+                    self.save(previous)
+                    self.db.event(previous['id'],'response_evidence_unassigned',{'message_id':m['id'],'response_stage_reset':True})
+                    progress_reset=True
             if case_id:
                 c=self.case(case_id)
                 if c['revision']==0:self.save(c)
             m.update(case_id=case_id or None,assignment='manual',manual_unassigned=not bool(case_id));self.db.put('mail',m['id'],m)
             for a in self.db.all('artifact'):
                 if a['message_id']==m['id']:a['case_id']=m['case_id'];self.db.put('artifact',a['id'],a)
-            return {'message':m,'matching_basis':'Explicit local assignment, not proof of sender identity.'}
+            return {'message':m,'matching_basis':'Explicit local assignment, not proof of sender identity.','response_progress_reset':progress_reset}
         if name=='desk_prepare_email':
             c=self.case(args.get('case_id'))
             self.verify_routing(c)
@@ -259,7 +340,6 @@ class Service:
             return {'draft':draft,'messages_sent':0,'case_id':c['id']}
         if name=='desk_send_email':
             try:
-                if args.get('confirmation')!='SEND_REVIEWED_EMAIL':raise ConnectorError('Explicit send confirmation is required.')
                 c=self.case(args.get('case_id'));draft_id=args.get('draft_id')
                 if draft_id not in c['drafts'] or draft_id!=c['drafts'][-1]:raise ConnectorError('Select the latest reviewed draft for this request.')
                 d=self.mail_store.get_draft(draft_id)
@@ -267,10 +347,10 @@ class Service:
                 if d['body']!=c['body'] or d['subject']!=c['subject'] or d['to']!=[c['recipient']] or not c['routing_verified']:
                     raise ConnectorError('Request content/routing changed after preparation. Prepare and review a fresh immutable draft.')
             except ConnectorError as exc:
-                # Only these read-only validations are known to precede approval.
+                # Only these read-only validations are known to precede a send attempt.
                 # Never attach this marker to a transport or receipt failure.
                 raise SendPreflightError(str(exc)) from exc
-            result=connector.dispatch('proton_send_draft',{'draft_id':draft_id,'expected_digest':args.get('expected_digest'),'confirmation':'SEND_PROTON_DRAFT'},self.mail_store)
+            result=connector.dispatch('proton_send_draft',{'draft_id':draft_id,'expected_digest':args.get('expected_digest')},self.mail_store)
             self.reconcile_sends();self.db.event(c['id'],'send_result',{'draft_id':draft_id,'state':result.get('state')})
             return result
         if name=='desk_record_portal':
@@ -284,21 +364,25 @@ class Service:
             c.update(stage='waiting',portal_receipt=receipt)
             self.save(c);self.db.event(c['id'],'portal_submission_recorded',c['portal_receipt']);return {'case':self.view_case(c),'portal_submitted_by_tool':False}
         if name=='desk_prepare_intake':
-            c=self.case(args.get('case_id'));issue=intake.prepare(self.db,self.catalog,c,args.get('fields'),args.get('artifact_ids',[]))
+            c=self.case(args.get('case_id'))
+            if c.get('general_campaign_id'):
+                raise ConnectorError('Generic campaign requests require an explicit private publication destination.')
+            issue=intake.prepare(self.db,self.catalog,c,args.get('fields'),args.get('artifact_ids',[]))
             if issue['id'] not in c['issues']:c['issues'].append(issue['id'])
             c['stage']='submitted' if issue['state']=='published' else 'ready';self.save(c)
             return {'issue':issue,'published':issue['state']=='published'}
         if name=='desk_publish_intake':
-            if args.get('confirmation')!='PUBLISH_REVIEWED_RECORDS_ISSUE':raise ConnectorError('Explicit public issue confirmation is required.')
             result=intake.publish(self.db,self.catalog,args.get('issue_id'),args.get('expected_digest'))
             c=self.case(result['issue']['case_id'])
             if result['issue']['id'] not in c['issues']:c['issues'].append(result['issue']['id']);self.save(c)
-            if result['state']=='published':c['stage']='submitted';self.save(c)
-            elif result['state']=='uncertain':c['stage']='attention';self.save(c)
+            if not c.get('general_campaign_id'):
+                if result['state']=='published':c['stage']='submitted';self.save(c)
+                elif result['state']=='uncertain':c['stage']='attention';self.save(c)
             self.db.event(c['id'],'issue_result',{'issue_id':result['issue']['id'],'state':result['state']})
             return result
         if name=='desk_link_issue':
-            issue=intake.reconcile(self.db,args.get('issue_id'),args.get('url'));c=self.case(issue['case_id']);c['stage']='submitted'
+            issue=intake.reconcile(self.db,args.get('issue_id'),args.get('url'));c=self.case(issue['case_id'])
+            if not c.get('general_campaign_id'):c['stage']='submitted'
             if issue['id'] not in c['issues']:c['issues'].append(issue['id'])
             self.save(c)
             return {'issue':issue}
@@ -313,9 +397,11 @@ class Service:
         with self.db.operation():return self._dispatch(name,args)
     def verify_routing(self,c):
         if not c['routing_verified']:raise ConnectorError('Verify the custodian and recipient before preparing or sending.')
-        if c.get('verified_catalog_sha256')!=self.catalog['sha256'] or time.time()-c.get('routing_verified_at',0)>7*86400:
+        generic=c.get('general_campaign_id')
+        if ((not generic and c.get('verified_catalog_sha256')!=self.catalog['sha256']) or
+            (generic and c.get('verified_template_hash')!=c['template_snapshot']['hash']) or time.time()-c.get('routing_verified_at',0)>7*86400):
             raise ConnectorError('Routing review is stale or the public catalog changed. Review current official routing and save verification again.')
-        if c['base']!=next((x for x in self.catalog['cases'] if x['id']==c['base']['id']),None):
+        if c['base']!=self.template(c):
             raise ConnectorError('This tracked template changed in the public catalog. Review its current text and recreate a custodian copy before sending; existing correspondence is preserved.')
 
 def safe_dispatch(name,args,service=None):

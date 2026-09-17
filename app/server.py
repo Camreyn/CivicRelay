@@ -47,8 +47,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if not self.allowed(): return self.json({'ok':False,'error':'Local origin required.'},403)
         route=urllib.parse.urlsplit(self.path).path
-        if route=='/health': return self.json({'ok':True,'app':'CivicResultMaps Records Desk','local_only':True,'tooling_version':'0.2.0',
-            'distribution':'civic-records-desk','package_version':'0.3.0','installation_id':INSTALLATION_ID})
+        if route=='/health': return self.json({'ok':True,'app':'CivicResultMaps Records Desk','local_only':True,'tooling_version':'0.6.0',
+            'distribution':'civic-records-desk','package_version':'0.6.0','installation_id':INSTALLATION_ID})
         if route.startswith('/api/'):
             if not self.allowed(True): return self.json({'ok':False,'error':'Open the local dashboard first.'},403)
             if route=='/api/bootstrap':
@@ -59,7 +59,11 @@ class Handler(BaseHTTPRequestHandler):
             return self.json({'ok':False,'error':'Unknown route.'},404)
         files={'/':('index.html','text/html; charset=utf-8'),'/app.js':('app.js','text/javascript; charset=utf-8'),'/workspace.js':('workspace.js','text/javascript; charset=utf-8'),
                '/tool-contracts.mjs':('tool-contracts.mjs','text/javascript; charset=utf-8'),'/page-tools.mjs':('page-tools.mjs','text/javascript; charset=utf-8'),
+               '/general-contracts.mjs':('general-contracts.mjs','text/javascript; charset=utf-8'),
                '/send-controls.mjs':('send-controls.mjs','text/javascript; charset=utf-8'),
+               '/equipment-campaign.js':('equipment-campaign.js','text/javascript; charset=utf-8'),
+               '/general-workspace.js':('general-workspace.js','text/javascript; charset=utf-8'),
+               '/general.css':('general.css','text/css; charset=utf-8'),
                '/style.css':('style.css','text/css; charset=utf-8'),'/status.css':('status.css','text/css; charset=utf-8'),'/map.json':('map.json','application/json')}
         if route not in files:return self.json({'ok':False,'error':'Not found.'},404)
         name,ctype=files[route]; raw=(ROOT/'static'/name).read_bytes()

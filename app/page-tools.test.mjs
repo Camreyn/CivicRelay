@@ -10,7 +10,7 @@ function example(schema){
  if(schema.type==='array')return [];
  if(schema.type==='integer')return schema.minimum||0;
  if(schema.type==='boolean')return false;
- return 'synthetic';
+ return 'synthetic'.slice(0,schema.maxLength??9).padEnd(schema.minLength??0,'x');
 }
 function fixture(){
  const calls=[],state={case_id:null,filter:'all',workspace_version:1,fields:{}};
@@ -22,17 +22,24 @@ function fixture(){
    stageIntake:input=>({staged:input}),startReply:async(id,version)=>({reply_message_id:id,workspace_version:version}),saveCurrent:async input=>({saved:input}),prepareCurrentEmail:async input=>({prepared:input}),prepareCurrentIntake:async input=>({prepared:input})}};
  return {actions,calls,state};
 }
-test('all 20 backend tasks have shared page schemas, annotations and validation',async()=>{
+test('all 40 backend tasks have shared page schemas, annotations and validation',async()=>{
  const {actions,calls}=fixture(),page=createPageTools(actions);
- assert.equal(page.length,32);assert.equal(new Set(page.map(t=>t.name)).size,32);
+ assert.equal(page.length,TOOLS.length+12);assert.equal(new Set(page.map(t=>t.name)).size,TOOLS.length+12);
  for(const contract of TOOLS){const tool=page.find(t=>t.name===contract.name);assert.deepEqual(tool.inputSchema,contract.schema);assert.equal(tool.annotations.readOnlyHint,contract.readOnly);assert.equal(tool.annotations.untrustedContentHint,true);
   const args=example(contract.schema);await tool.execute(args);assert.equal(calls.at(-1).name,contract.name);
   const count=calls.length;await assert.rejects(()=>tool.execute({...args,approval_bypass:true}));assert.equal(calls.length,count);
  }
 });
-test('external page tools retain exact confirmations and cannot approve desktop windows',async()=>{
+test('external page tools require exact digests but no approval-only arguments',async()=>{
  const {actions,calls}=fixture(),page=createPageTools(actions);
- for(const name of ['desk_send_email','desk_publish_intake']){const tool=page.find(t=>t.name===name),args=example(tool.inputSchema);delete args.confirmation;await assert.rejects(()=>tool.execute(args));assert.equal(calls.length,0);assert.ok(tool.inputSchema.required.includes('expected_digest'));}
+ for(const name of ['desk_send_email','desk_publish_intake']){
+  const tool=page.find(t=>t.name===name),args=example(tool.inputSchema);
+  assert.equal(Object.hasOwn(tool.inputSchema.properties,'confirmation'),false);
+  await tool.execute(args);assert.equal(calls.at(-1).name,name);
+  const count=calls.length;delete args.expected_digest;
+  await assert.rejects(()=>tool.execute(args));assert.equal(calls.length,count);
+  assert.ok(tool.inputSchema.required.includes('expected_digest'));
+ }
  assert.deepEqual(Object.keys(page.find(t=>t.name==='desk_export_package').inputSchema.properties),['issue_id']);
 });
 test('page helpers stage visible state, reject stale state and do not silently save',async()=>{
@@ -50,7 +57,7 @@ test('registration feature-detects, reports failures and forwards abort lifecycl
  const controller=new AbortController(),seen=[],errors=[];
  const context={registerTool:async(tool,options)=>{assert.equal(options.signal,controller.signal);if(tool.name==='desk_status')throw Error('synthetic failure');seen.push(tool);}};
  const r=await registerPageTools(context,actions,{signal:controller.signal,onError:name=>errors.push(name)});
- assert.equal(r.registered.length,31);assert.deepEqual(r.failed,['desk_status']);assert.deepEqual(errors,['desk_status']);assert.equal(seen.length,31);
+ assert.equal(r.registered.length,TOOLS.length+11);assert.deepEqual(r.failed,['desk_status']);assert.deepEqual(errors,['desk_status']);assert.equal(seen.length,TOOLS.length+11);
  controller.abort();assert.deepEqual((await registerPageTools(context,actions,{signal:controller.signal})).registered,[]);
 });
 test('in-flight page tool blocks concurrent operations without retrying them',async()=>{

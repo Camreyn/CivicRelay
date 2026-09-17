@@ -30,6 +30,8 @@ __pycache__/
 /collections/
 /app/collections/
 /app/send-flow-*.png
+/app/equipment-synthetic.png
+/app/general-synthetic*.png
 /playwright-report/
 /test-results/
 /blob-report/

@@ -2,18 +2,21 @@
 from contextlib import contextmanager
 from concurrent.futures import ThreadPoolExecutor
 from email.message import EmailMessage
+from email.parser import BytesParser
+from email.policy import default
 import hashlib
 import json
 import os
 from pathlib import Path
 import ssl
+import sys
 import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 
 import bridge
 import connector
-from secure_store import ConnectorError, SendPreflightError, Store, WindowsProtector, canonical, private_root, guard_repository_location
+from secure_store import ConnectorError, SendPreflightError, Store, WindowsProtector, canonical, private_root, guard_repository_location, _selected_namespace
 
 FIXTURE_SECRET = "synthetic-test-credential-never-a-real-password"
 CERT = b"synthetic-certificate"
@@ -24,6 +27,13 @@ def settings(enabled=False):
     return {"version": 1, "email": connector.PROJECT_EMAIL, "password": FIXTURE_SECRET,
             "imap_port": 1143, "smtp_port": 1025, "imap_pin": PIN, "smtp_pin": PIN,
             "sending_enabled": enabled, "project_mailbox_confirmed": True}
+
+
+def profile_settings(email="relay@example.org", name="Civic Relay", profile="00000000-0000-4000-8000-000000000002", enabled=False):
+    return {"version": 2, "email": email, "display_name": name, "profile_id": profile,
+            "password": FIXTURE_SECRET, "imap_port": 1143, "smtp_port": 1025,
+            "imap_pin": PIN, "smtp_pin": PIN, "sending_enabled": enabled,
+            "project_mailbox_confirmed": True}
 
 
 class TestOnlyProtector:
@@ -63,8 +73,7 @@ class ConnectorTests(unittest.TestCase):
             "subject": "Synthetic test", "body": body}, self.store)["draft"]
 
     def send_args(self, draft):
-        return {"draft_id": draft["draft_id"], "expected_digest": draft["digest"],
-                "confirmation": "SEND_PROTON_DRAFT"}
+        return {"draft_id": draft["draft_id"], "expected_digest": draft["digest"]}
 
     def enabled(self):
         self.store.save_settings(settings(True))
@@ -81,6 +90,7 @@ class ConnectorTests(unittest.TestCase):
         result = connector.dispatch("proton_status", {}, self.store)
         self.assertTrue(result["configured"])
         self.assertTrue(result["send_window"]["ready"])
+        self.assertFalse(result["requires_desktop_confirmation"])
         self.assertFalse((self.store.root / "drafts.sqlite3").exists())
 
     def test_reading_missing_draft_does_not_create_database(self):
@@ -107,13 +117,83 @@ class ConnectorTests(unittest.TestCase):
             self.assertNotIn(value.encode(), data)
 
     def test_settings_require_isolation_send_boolean_and_valid_ports(self):
-        for key, value in (("project_mailbox_confirmed", False), ("sending_enabled", "yes"),
+        for key, value in (("version", True), ("project_mailbox_confirmed", False), ("sending_enabled", "yes"),
                            ("imap_port", True), ("smtp_port", 70000), ("imap_pin", ""),
                            ("email", "personal@example.org")):
             current = settings()
             current[key] = value
             with self.subTest(key=key), self.assertRaises(ConnectorError):
                 connector.validate_settings(current)
+
+    def test_fresh_configurable_profile_has_sanitized_summary_and_profile_bound_draft(self):
+        store = Store(self.root / "profile", TestOnlyProtector())
+        current = profile_settings()
+        store.save_settings(current)
+        summary = connector.account_summary(store)
+        self.assertEqual(summary, {"configured": True, "email": "relay@example.org", "display_name": "Civic Relay",
+                                   "profile_id": current["profile_id"], "legacy_storage": False,
+                                   "private_storage": str(store.root), "local_only": True, "legacy_settings": False})
+        draft = connector.dispatch("proton_prepare_draft", {"to": ["records@example.gov"], "subject": "Synthetic test", "body": "Synthetic records request."}, store)["draft"]
+        self.assertEqual(draft["draft_version"], 2)
+        self.assertEqual(draft["display_name"], "Civic Relay")
+        self.assertEqual(draft["profile_id"], current["profile_id"])
+        self.assertEqual(draft["digest"], connector.digest(draft))
+        self.assertIn(b"Civic Relay <relay@example.org>", connector.build_message(draft))
+
+    def test_v2_display_name_is_one_rfc_mailbox_even_with_header_like_characters(self):
+        store = Store(self.root / "header", TestOnlyProtector())
+        current = profile_settings(name="Relay, <Public>")
+        store.save_settings(current)
+        draft = connector.dispatch("proton_prepare_draft", {"to": ["records@example.gov"], "subject": "Header", "body": "Synthetic"}, store)["draft"]
+        parsed = BytesParser(policy=default).parsebytes(connector.build_message(draft))
+        self.assertEqual(len(parsed["From"].addresses), 1)
+        self.assertEqual(parsed["From"].addresses[0].addr_spec, "relay@example.org")
+        self.assertEqual(parsed["From"].addresses[0].display_name, "Relay, <Public>")
+
+    def test_legacy_draft_digest_and_wire_sender_are_preserved(self):
+        draft = self.draft()
+        self.assertNotIn("draft_version", draft)
+        self.assertEqual(draft["digest"], hashlib.sha256(canonical({key: draft[key] for key in connector.CONTENT_KEYS})).hexdigest())
+        self.assertIn(b"CivicResultMaps <CivicResultMaps@proton.me>", connector.build_message(draft))
+        self.assertEqual(connector.account_summary(self.store)["profile_id"], None)
+
+    def test_unknown_draft_version_fails_closed(self):
+        draft = self.draft()
+        with self.store.database() as db:
+            draft["draft_version"] = 3
+            db.execute("UPDATE drafts SET payload=? WHERE id=?", (self.store.protector.protect(draft), draft["draft_id"]))
+        with self.assertRaises(ConnectorError):
+            self.store.get_draft(draft["draft_id"])
+        with self.assertRaises(ConnectorError):
+            connector.build_message({**draft, "draft_version": True})
+
+    def test_draft_profile_lock_blocks_cross_sender_and_attempted_draft_stays_locked(self):
+        store = Store(self.root / "locked", TestOnlyProtector())
+        first = profile_settings()
+        store.save_settings(first)
+        draft = connector.dispatch("proton_prepare_draft", {"to": ["records@example.gov"], "subject": "Lock", "body": "Synthetic"}, store)["draft"]
+        with self.assertRaises(ConnectorError):
+            store.save_settings(profile_settings("other@example.org", "Other", "00000000-0000-4000-8000-000000000003"))
+        with patch("bridge.smtp_connection") as smtp:
+            with self.assertRaises(ConnectorError):
+                connector.send_draft(store, profile_settings("relay@example.org", "Civic Relay", "00000000-0000-4000-8000-000000000004", True), self.send_args(draft))
+        smtp.assert_not_called()
+        store.claim_send(draft["draft_id"], draft["digest"], 1000)
+        with self.assertRaises(ConnectorError):
+            store.save_settings(profile_settings("relay@example.org", "Different", "00000000-0000-4000-8000-000000000005"))
+
+    def test_namespace_resolution_prefers_legacy_and_ambiguous_stores_fail_closed(self):
+        local = self.root / "LocalAppData"
+        legacy = local / "CivicResultMaps" / "ProtonConnector"
+        current = local / "CivicRelay" / "ProtonConnector"
+        self.assertEqual(_selected_namespace(local), local / "CivicRelay")
+        legacy.mkdir(parents=True)
+        (legacy / "settings.dpapi").write_bytes(b"synthetic")
+        self.assertEqual(_selected_namespace(local), local / "CivicResultMaps")
+        current.mkdir(parents=True)
+        (current / "drafts.sqlite3").write_bytes(b"synthetic")
+        with self.assertRaisesRegex(ConnectorError, "Both legacy and CivicRelay"):
+            _selected_namespace(local)
 
     def test_unexpected_arguments_and_unsafe_scopes_are_rejected(self):
         cases = [("proton_status", {"host": "remote.example"}),
@@ -143,12 +223,12 @@ class ConnectorTests(unittest.TestCase):
         draft = self.draft()
         with patch("bridge.smtp_connection") as smtp:
             with self.assertRaises(ConnectorError):
-                connector.send_draft(self.store, settings(), self.send_args(draft), confirm=lambda d: True)
+                connector.send_draft(self.store, settings(), self.send_args(draft))
         smtp.assert_not_called()
         result = connector.safe_dispatch("proton_send_draft", {**self.send_args(draft), "sending_enabled": True}, self.store)
         self.assertFalse(result["ok"])
 
-    def test_pre_approval_rejections_are_marked_send_not_started(self):
+    def test_preflight_rejections_are_marked_send_not_started(self):
         draft = self.draft()
         self.store.save_settings(settings())
         result = connector.safe_dispatch("proton_send_draft", self.send_args(draft), self.store)
@@ -158,7 +238,7 @@ class ConnectorTests(unittest.TestCase):
         current = self.enabled()
         bad_digest = {**self.send_args(draft), "expected_digest": "0" * 64}
         with self.assertRaises(SendPreflightError):
-            connector.send_draft(self.store, current, bad_digest, MagicMock())
+            connector.send_draft(self.store, current, bad_digest)
         result = connector.safe_dispatch("proton_send_draft", bad_digest, self.store)
         self.assertFalse(result["ok"])
         self.assertTrue(result["send_not_started"])
@@ -167,71 +247,79 @@ class ConnectorTests(unittest.TestCase):
         blocked = self.draft("Cooldown fixture")
         with patch("connector.time.time", return_value=1050):
             with self.assertRaises(SendPreflightError):
-                connector.send_draft(self.store, current, self.send_args(blocked), MagicMock())
+                connector.send_draft(self.store, current, self.send_args(blocked))
             result = connector.safe_dispatch("proton_send_draft", self.send_args(blocked), self.store)
         self.assertFalse(result["ok"])
         self.assertTrue(result["send_not_started"])
 
-    def test_exact_digest_and_confirmation_required_before_local_dialog(self):
+    def test_exact_digest_is_required_before_smtp(self):
         draft = self.draft()
         current = self.enabled()
-        confirm = MagicMock(return_value=True)
-        for override in ({"expected_digest": "0" * 64}, {"confirmation": "yes"}):
-            with self.assertRaises(ConnectorError):
-                connector.send_draft(self.store, current, {**self.send_args(draft), **override}, confirm)
-        confirm.assert_not_called()
+        with patch("bridge.smtp_connection") as smtp:
+            for expected in ("0" * 64, None, ""):
+                with self.assertRaises(ConnectorError):
+                    connector.send_draft(self.store, current, {**self.send_args(draft), "expected_digest": expected})
+        smtp.assert_not_called()
 
-    def test_message_id_must_be_derived_from_the_approved_draft_identity(self):
+    def test_message_id_must_be_derived_from_the_immutable_draft_identity(self):
         draft = self.draft()
         with self.store.database() as db:
             draft["message_id"] = "<different@example.org>"
             db.execute("UPDATE drafts SET payload=? WHERE id=?", (self.store.protector.protect(draft), draft["draft_id"]))
-        confirm = MagicMock(return_value=True)
-        with self.assertRaises(ConnectorError):
-            connector.send_draft(self.store, self.enabled(), self.send_args(draft), confirm)
-        confirm.assert_not_called()
+        with patch("bridge.smtp_connection") as smtp, self.assertRaises(ConnectorError):
+            connector.send_draft(self.store, self.enabled(), self.send_args(draft))
+        smtp.assert_not_called()
 
-    def test_cancel_local_dialog_performs_no_smtp_or_send_claim(self):
+    def test_send_dispatch_has_no_confirmation_argument_or_gui_dependency(self):
+        draft, smtp = self.draft(), self.smtp()
+        self.enabled()
+        with self.smtp_fixture(smtp), patch.dict(sys.modules, {"desktop": None, "tkinter": None}):
+            result = connector.dispatch("proton_send_draft", self.send_args(draft), self.store)
+        self.assertEqual(result["state"], "accepted")
+        smtp.data.assert_called_once()
+        self.assertEqual(self.store.get_draft(draft["draft_id"])["state"], "accepted")
+
+    def test_legacy_confirmation_is_not_an_authorization_override(self):
         draft = self.draft()
         with patch("bridge.smtp_connection") as smtp:
-            result = connector.send_draft(self.store, self.enabled(), self.send_args(draft), lambda d: False)
+            result = connector.safe_dispatch("proton_send_draft", {**self.send_args(draft), "confirmation": "SEND_PROTON_DRAFT"}, self.store)
+        self.assertFalse(result["ok"])
         smtp.assert_not_called()
-        self.assertFalse(result["approved"])
-        self.assertEqual(self.store.get_draft(draft["draft_id"])["state"], "draft")
 
-    def test_window_blocks_before_confirmation_or_smtp_without_consuming_attempt(self):
+    def test_window_blocks_before_smtp_without_consuming_attempt(self):
         draft = self.draft()
         self.store.claim_send(draft["draft_id"], draft["digest"], 1000)
         extra = self.draft("A distinct synthetic request.")
-        confirm = MagicMock(return_value=True)
         with patch("connector.time.time", return_value=1059.9), patch("bridge.smtp_connection") as smtp:
             with self.assertRaises(ConnectorError):
-                connector.send_draft(self.store, self.enabled(), self.send_args(extra), confirm)
-        confirm.assert_not_called()
+                connector.send_draft(self.store, self.enabled(), self.send_args(extra))
         smtp.assert_not_called()
         self.assertEqual(self.store.get_draft(extra["draft_id"])["state"], "draft")
 
-    def test_config_change_during_confirmation_aborts_send(self):
+    def test_config_change_during_preflight_aborts_send(self):
         draft = self.draft()
         current = self.enabled()
-        def changed(_):
+        original = connector._preflight_send
+        def changed(*args):
+            result = original(*args)
             self.store.save_settings(settings(False))
-            return True
-        with patch("bridge.smtp_connection") as smtp, self.assertRaises(ConnectorError):
-            connector.send_draft(self.store, current, self.send_args(draft), changed)
+            return result
+        with patch("connector._preflight_send", side_effect=changed), patch("bridge.smtp_connection") as smtp, self.assertRaises(ConnectorError):
+            connector.send_draft(self.store, current, self.send_args(draft))
         smtp.assert_not_called()
 
-    def test_changed_draft_during_approval_is_caught_by_atomic_claim(self):
+    def test_concurrent_draft_change_after_preflight_is_caught_by_atomic_claim(self):
         draft = self.draft()
         current = self.enabled()
 
-        def claimed_elsewhere(_):
+        original = connector.build_message
+        def claimed_elsewhere(value):
             self.store.claim_send(draft["draft_id"], draft["digest"], 5000)
-            return True
+            return original(value)
 
-        with patch("connector.time.time", return_value=5000), patch("bridge.smtp_connection") as smtp:
+        with patch("connector.build_message", side_effect=claimed_elsewhere), patch("connector.time.time", return_value=5000), patch("bridge.smtp_connection") as smtp:
             with self.assertRaises(ConnectorError) as raised:
-                connector.send_draft(self.store, current, self.send_args(draft), claimed_elsewhere)
+                connector.send_draft(self.store, current, self.send_args(draft))
         self.assertNotIsInstance(raised.exception, SendPreflightError)
         smtp.assert_not_called()
 
@@ -251,10 +339,10 @@ class ConnectorTests(unittest.TestCase):
     def test_acceptance_recorded_and_duplicate_send_blocked(self):
         draft, current, smtp = self.draft(), self.enabled(), self.smtp()
         with self.smtp_fixture(smtp):
-            result = connector.send_draft(self.store, current, self.send_args(draft), lambda d: True)
+            result = connector.send_draft(self.store, current, self.send_args(draft))
             self.assertEqual(result["state"], "accepted")
             with self.assertRaises(ConnectorError):
-                connector.send_draft(self.store, current, self.send_args(draft), lambda d: True)
+                connector.send_draft(self.store, current, self.send_args(draft))
         smtp.data.assert_called_once()
         self.assertEqual(self.draft()["draft_id"], draft["draft_id"])
         self.assertEqual(self.store.get_draft(draft["draft_id"])["state"], "accepted")
@@ -263,10 +351,10 @@ class ConnectorTests(unittest.TestCase):
         draft, current, smtp = self.draft(), self.enabled(), self.smtp()
         smtp.data.side_effect = TimeoutError(FIXTURE_SECRET)
         with self.smtp_fixture(smtp):
-            result = connector.send_draft(self.store, current, self.send_args(draft), lambda d: True)
+            result = connector.send_draft(self.store, current, self.send_args(draft))
             self.assertEqual(result["state"], "uncertain")
             with self.assertRaises(ConnectorError):
-                connector.send_draft(self.store, current, self.send_args(draft), lambda d: True)
+                connector.send_draft(self.store, current, self.send_args(draft))
         self.assertNotIn(FIXTURE_SECRET, json.dumps(result))
         smtp.data.assert_called_once()
 
@@ -274,7 +362,7 @@ class ConnectorTests(unittest.TestCase):
         draft, current, smtp = self.draft(), self.enabled(), self.smtp()
         smtp.rcpt.return_value = (550, b"refused")
         with self.smtp_fixture(smtp):
-            result = connector.send_draft(self.store, current, self.send_args(draft), lambda d: True)
+            result = connector.send_draft(self.store, current, self.send_args(draft))
         self.assertEqual(result["state"], "failed_before_data")
         smtp.data.assert_not_called()
         smtp.rset.assert_called_once()
@@ -311,13 +399,13 @@ class ConnectorTests(unittest.TestCase):
     def test_receipt_persistence_failure_never_reports_acceptance_or_retries(self):
         draft, current, smtp = self.draft(), self.enabled(), self.smtp()
         with self.smtp_fixture(smtp), patch.object(self.store, "finish_send", side_effect=OSError(FIXTURE_SECRET)):
-            result = connector.send_draft(self.store, current, self.send_args(draft), lambda d: True)
+            result = connector.send_draft(self.store, current, self.send_args(draft))
         self.assertFalse(result["ok"])
         self.assertEqual(result["state"], "receipt_persistence_uncertain")
         self.assertEqual(self.store.get_draft(draft["draft_id"])["state"], "sending")
         self.assertNotIn(FIXTURE_SECRET, json.dumps(result))
         with self.smtp_fixture(smtp), self.assertRaises(ConnectorError):
-            connector.send_draft(self.store, current, self.send_args(draft), lambda d: True)
+            connector.send_draft(self.store, current, self.send_args(draft))
         smtp.data.assert_called_once()
 
     def test_database_handles_close_and_transactions_roll_back(self):
