@@ -1,5 +1,11 @@
 # Using CivicRelay
 
+To inspect county-specific requests, select a state and click **View county
+requests**, or expand the county-status panel. Its map/list shows every county
+and opens each county's own correspondence. See [county status](COUNTY-STATUS.md)
+for colors, filtering, matching limitations and the distinction between a new
+reply and fulfillment. State-level replies never color all counties.
+
 For a new installation, start with **General records desk** and the
 [general-purpose user guide](GENERAL-USER-GUIDE.md). It covers workspace setup,
 reusable templates, campaigns, federal/local targets and private export.
@@ -43,6 +49,21 @@ to see each case separately.
 
 “New reply” is a local review state, separate from the read flag in Proton.
 Request statuses and data gaps do not establish misconduct.
+
+## Deadlines and sources
+
+The **Deadlines & follow-ups** queue checks saved requests across all workflows.
+It refreshes dates every minute while visible without contacting the mailbox.
+Select **Sources & timing** to see the statute/guidance citation, original receipt
+basis, calculation and caveats, or to record a reviewed agency extension,
+commitment, appeal date or internal reminder. These are separate checkpoint kinds.
+
+Red map outlines indicate a past timing date and amber indicates due today/soon;
+existing correspondence colors remain intact. “Potentially overdue” is an
+estimate requiring review, not a legal finding. Inbox freshness is displayed;
+use **Check for replies** separately before concluding no response arrived.
+No fixed deadline is invented for uncovered jurisdictions or prompt-response
+profiles. See [coverage, calculation limits and evidence editing](DEADLINES.md).
 
 ## Send an initial request
 

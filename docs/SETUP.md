@@ -6,8 +6,9 @@ the checkout's name is not significant. Do not rename its private storage.
 
 ## Requirements
 
-- Windows with the same signed-in user profile used for existing encrypted data.
-- Python 3.13 with Tkinter and `pythonw.exe`. Default: `C:\Python313\python.exe`.
+- 64-bit Windows 10 or later, with the same signed-in user profile used for
+  existing encrypted data. Windows 11 is recommended.
+- Python 3.13, 64-bit, with Tkinter and `pythonw.exe`. Default: `C:\Python313\python.exe`.
 - Node.js 22 or later. Default for Python-launched work:
   `C:\Program Files\nodejs\node.exe`.
 - Proton Mail Bridge already working locally. The connector supports pinned
@@ -119,10 +120,11 @@ node scripts/configure-codex.mjs
 It generates **only** this folder's ignored `.codex/config.toml`, using absolute
 paths for this checkout. It refuses to overwrite an existing configuration. The
 reviewable template is [mcp-config.example.toml](mcp-config.example.toml).
-The corrected starter template enables all **40 records tools and 8 mail tools**,
+The current starter template enables all **53 records tools and 8 mail tools**,
 including workspace settings, reusable templates, campaigns, equipment tracking,
-publication previews and private exports. The tool allowlists are checked against
-the server schemas by `npm.cmd test`.
+publication previews, private exports, county contact/progress tools and
+source-linked deadline tracking. The tool allowlists are checked against the
+server schemas by `npm.cmd test`.
 It does not change global trust, enroll credentials, launch an MCP server, or
 register the unrelated CivicResultMaps data MCP.
 
@@ -148,8 +150,9 @@ client's account, permissions and availability are separate.
 ### Upgrading an existing assistant configuration
 
 The original 0.6.0 configuration template enabled only 20 records tools. Its
-servers expose 40, but the host's `enabled_tools` allowlist hides the omitted
-workspace, template, campaign, destination and equipment tools. A working
+records server now exposes 53 tools, but an old host `enabled_tools` allowlist
+hides later additions such as workspace, template, campaign, destination,
+equipment, deadline and county-contact tools. A working
 dashboard or successful server restart does not correct an old allowlist.
 
 1. Update to 0.6.1 or later, which includes the corrected
@@ -171,6 +174,15 @@ The generator intentionally refuses to overwrite an existing file, including
 when passed an overwrite flag. Source updates and tests do not edit a live
 assistant configuration. The current template is the source of truth for tool
 names; [the tool reference](TOOL-REFERENCE.md) describes their arguments.
+
+For the county feature, update to the current source checkout (the older 0.6.1
+release archive does not include it), restart the dashboard when idle, and reload
+its page. Select a state and choose **View county requests**. No new map package,
+mailbox enrollment, private-data migration or public map service is required.
+Native assistants need `desk_list_counties` enabled and refreshed schemas for its
+`include_requests`, `workflow` and `campaign_id` options; no additional tool is
+needed if that existing county tool is already enabled. The county panel can be
+used independently of contact research. See [county status](COUNTY-STATUS.md).
 
 ### Check the assistant connection
 

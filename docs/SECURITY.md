@@ -90,6 +90,35 @@ eligibility; fees, declarations and channel changes need user authority beyond
 ordinary correspondence handling. Credential enrollment, mailbox isolation,
 sending enablement and TLS trust remain local setup decisions.
 
+## Deadline evidence is not authority
+
+The deadline engine reads saved metadata and a reviewed public rule registry,
+not email bodies as executable instructions. It never fetches a supplied source
+URL, sends mail, accepts fees or files appeals. Evidence source links must be
+HTTPS without embedded credentials, but the operator must verify their official
+authority and legal applicability. Case evidence stays encrypted; the public
+registry contains no requester or mailbox data. Estimates, recorded dates and
+internal reminders are explicitly different. A legal deadline is not proven by
+an app badge. See [deadline limits](DEADLINES.md).
+
+## Contact research evidence and workers
+
+County directory entries and batches use the same encrypted private store, not
+repository files. The bundled Census county-name baseline contains no contacts.
+Source URLs, snippets, saved-case leads and agent output are untrusted data. No
+research tool fetches a caller-supplied URL, executes source text, launches a
+model, sends mail, incurs fees or reroutes a case. Official-source verification
+is an explicit operator/agent attestation, not an inference from a domain suffix.
+
+Exact county/role IDs, revisions, result digests and expiring task leases protect
+against accidental cross-county assignment, duplicate work and stale overwrites.
+They are not an authentication boundary against another process in the same
+Windows account. Atomic result/receipt writes prevent a partially completed
+research save. Historical observations are retained; capacity limits refuse
+additional writes instead of deleting old evidence. Do not put credentials,
+private voter data or unnecessary personal information in source notes.
+See [research limitations](CONTACT-RESEARCH.md).
+
 ## Backups and another PC
 
 The migration preserves the same user's live data in place. A Git clone is a

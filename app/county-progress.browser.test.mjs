@@ -1,0 +1,54 @@
+// Synthetic full story: county map -> local projection -> request/reply workspace.
+import assert from 'node:assert/strict';
+import {spawn} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
+import {tmpdir} from 'node:os';
+import path from 'node:path';
+import {chromium} from 'playwright';
+import {pythonExecutable} from '../runtime-config.mjs';
+const fixture=spawn(pythonExecutable(),['-E','-s','-S',fileURLToPath(new URL('./county_progress_browser_fixture.py',import.meta.url))],{cwd:fileURLToPath(new URL('.',import.meta.url)),windowsHide:true,stdio:['ignore','pipe','pipe']});
+let browser,stderr='';fixture.stderr.on('data',c=>stderr+=c);
+try{
+ const ready=await new Promise((resolve,reject)=>{let output='';const timer=setTimeout(()=>reject(Error('Fixture timeout: '+stderr)),20000);fixture.stdout.on('data',chunk=>{output+=chunk;if(output.includes('\n')){clearTimeout(timer);try{resolve(JSON.parse(output.split('\n')[0]));}catch(e){reject(e);}}});fixture.on('error',reject);fixture.on('exit',code=>{clearTimeout(timer);reject(Error('Fixture exit '+code+': '+stderr));});});
+ const origin=`http://127.0.0.1:${ready.port}`,external=[],errors=[],operations=[];assert.equal(ready.synthetic,true);
+ browser=await chromium.launch({headless:true});const page=await browser.newPage({viewport:{width:1450,height:1100}});page.setDefaultTimeout(15000);
+ page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
+ await page.route('**/*',route=>{if(!route.request().url().startsWith(origin+'/')){external.push(route.request().url());return route.abort();}return route.continue();});
+ page.on('request',r=>{if(r.url().endsWith('/api/operation'))operations.push(r.postDataJSON().tool);});
+ await page.goto(origin);await page.getByText('Private records workspace ready.',{exact:false}).waitFor();
+ await page.getByRole('button',{name:'View county requests',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelectorAll('#county-progress-map .county-shape').length===83);
+ assert.equal(await page.locator('#county-progress-rows tr').count(),83);
+ assert.match(await page.locator('#county-progress-counts').innerText(),/6 with requests · 77 with no county request · 1 new replies/);
+ const shape=id=>page.locator(`#county-progress-map [data-county-id="county:${id}"]`);
+ assert.equal(await shape('26001').getAttribute('data-status'),'routing');assert.equal(await shape('26003').getAttribute('data-status'),'waiting');
+ assert.equal(await shape('26005').getAttribute('data-status'),'new');assert.equal(await shape('26007').getAttribute('data-status'),'partial');
+ assert.equal(await shape('26009').getAttribute('data-status'),'acknowledged');assert.equal(await shape('26011').getAttribute('data-status'),'received');assert.equal(await shape('26013').getAttribute('data-status'),'none');
+ assert.match(await page.locator('#county-progress-related').innerText(),/needing a name \/ ID match \(1\)/);
+ assert.match(await page.locator('#county-progress-related').innerText(),/not assigned to counties \(1\)/);
+ // Keyboard-accessible shapes and ordinary list navigation use the same detail.
+ await shape('26005').focus();await page.keyboard.press('Enter');await page.locator('#county-progress-detail').getByRole('heading',{name:'Allegan County',exact:true}).waitFor();
+ assert.match(await page.locator('#county-progress-detail').innerText(),/1 new replies/);
+ const opening=page.waitForResponse(r=>r.url().endsWith('/api/operation')&&r.request().postDataJSON()?.tool==='desk_get_case');
+ await page.locator('#county-progress-detail').getByRole('button',{name:'Open request & replies',exact:true}).click();
+ const response=await (await opening).json();assert.equal(response.ok,true);assert.equal(response.result.case.id,ready.cases['Allegan County']);
+ await page.locator('#case-workspace').waitFor({state:'visible'});assert.match(await page.locator('#case-workspace').innerText(),/Synthetic reply/);
+ // Marking synthetic mail reviewed must change only its county when refreshed.
+ const mid=response.result.messages[0].id;const marked=await page.request.post(origin+'/api/operation',{headers:{Origin:origin,'X-Records-Desk':'1'},data:{tool:'desk_mark_reviewed',arguments:{message_id:mid}}});assert.equal((await marked.json()).ok,true);
+ await page.getByRole('button',{name:'Refresh saved status',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('#county-progress-panel')?.getAttribute('aria-busy')==='false'&&document.querySelector('[data-county-id="county:26005"]')?.dataset.status==='acknowledged');
+ await page.locator('#county-progress-search').fill('Alger');assert.equal(await page.locator('#county-progress-rows tr').count(),1);
+ await page.locator('#county-progress-rows').getByRole('button',{name:'Alger County',exact:true}).click();assert.match(await page.locator('#county-progress-detail').innerText(),/Awaiting reply/);
+ await page.locator('#county-progress-search').fill('');await page.locator('#county-progress-filter').selectOption('none');assert.equal(await page.locator('#county-progress-rows tr').count(),77);
+ await page.locator('#county-progress-rows').getByRole('button',{name:'Baraga County',exact:true}).click();assert.match(await page.locator('#county-progress-detail').innerText(),/No county-specific request/);
+ await page.locator('#county-progress-filter').selectOption('all');
+ const screenshot=path.join(tmpdir(),'civicrelay-county-progress-synthetic.png');await page.locator('#county-progress-panel').screenshot({path:screenshot});
+ await page.locator('#county-progress-state').selectOption('WI');await page.waitForFunction(()=>document.querySelectorAll('#county-progress-map .county-shape').length===72);
+ assert.match(await page.locator('#county-progress-counts').innerText(),/0 with requests · 72 with no county request/);
+ await page.locator('#county-progress-state').selectOption('MI');await page.waitForFunction(()=>document.querySelectorAll('#county-progress-map .county-shape').length===83);
+ await page.locator('#county-progress-workflow').selectOption('records');await page.waitForFunction(()=>document.querySelector('#county-progress-counts')?.textContent.includes('0 with requests · 83 with no county request'));
+ await page.locator('#county-progress-workflow').selectOption('equipment');await page.waitForFunction(()=>document.querySelector('#county-progress-counts')?.textContent.includes('6 with requests'));
+ await page.setViewportSize({width:390,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
+ assert.deepEqual(errors,[]);assert.deepEqual(external,[]);assert.equal(operations.some(x=>/sync_mail|send_email|publish|capture|export/.test(x)),false);
+ console.log(JSON.stringify({ok:true,synthetic:true,stories:['83-county-map-and-list','distinct-request-statuses','unmatched-visible','state-reply-not-county-coverage','keyboard-county-navigation','exact-case-and-reply-open','reviewed-reply-refresh','search-and-filters','state-and-workflow-switch','mobile-width'],screenshot,external_actions:0}));
+}finally{await browser?.close();fixture.kill();}

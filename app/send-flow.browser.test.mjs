@@ -7,7 +7,7 @@ import {fileURLToPath} from 'node:url';
 import {chromium} from 'playwright';
 
 const assets = new Map(['index.html', 'app.js', 'workspace.js', 'send-controls.mjs', 'equipment-campaign.js', 'general-workspace.js',
-  'style.css', 'status.css', 'general.css', 'general-contracts.mjs', 'tool-contracts.mjs', 'page-tools.mjs', 'map.json']
+  'style.css', 'status.css', 'general.css', 'general-contracts.mjs', 'deadline-contracts.mjs', 'deadlines.js', 'deadlines.css', 'contact-contracts.mjs', 'contacts.js', 'contacts.css', 'county-progress.js', 'county-progress.css', 'county-map.json', 'tool-contracts.mjs', 'page-tools.mjs', 'map.json']
   .map(name => ['/' + (name === 'index.html' ? '' : name), name]));
 const geometry = JSON.parse(await readFile(new URL('./static/map.json', import.meta.url)));
 const base = {id: 'synthetic-case', revision: 1, state: 'IN', state_name: 'Indiana',

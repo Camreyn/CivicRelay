@@ -17,6 +17,8 @@ import equipment
 import general
 import templates
 import integrations
+import deadlines
+import contacts
 
 ARGUMENTS={
  'desk_get_equipment_campaign':{'state'},
@@ -44,9 +46,9 @@ ARGUMENTS |= {
  'desk_list_campaigns':set(), 'desk_save_campaign':{'campaign_id','revision','name','description','template_id','date_start','date_end','targets'},
  'desk_create_request':{'campaign_id','template_id','target_id','agency','values'},
  'desk_save_request_progress':{'case_id','revision','response_stage','response_message_id','coverage','note','fee_note','procedure_note','deadline_date','deadline_kind','deadline_source','deadline_basis','deadline_checked_date'},
-} | integrations.ARGUMENTS
+} | integrations.ARGUMENTS | deadlines.ARGUMENTS | contacts.ARGUMENTS
 READ_ONLY={'desk_status','desk_list_cases','desk_get_case','desk_get_workflow','desk_list_messages','desk_get_intake','desk_get_equipment_campaign',
-           'desk_get_workspace','desk_list_templates','desk_get_template','desk_preview_template','desk_export_template','desk_list_campaigns'} | integrations.READ_ONLY
+           'desk_get_workspace','desk_list_templates','desk_get_template','desk_preview_template','desk_export_template','desk_list_campaigns'} | integrations.READ_ONLY | deadlines.READ_ONLY | contacts.READ_ONLY
 
 STATUS_LABELS={'none':'No prepared request','routing':'Routing needed','draft':'Draft',
  'waiting':'Awaiting reply','new':'New reply','attention':'Action needed',
@@ -84,23 +86,27 @@ class Service:
         current={k:v for k,v in c.items() if k!='base'}
         base=self.template(c)
         current.update(status=status,unread_count=len(unread),mail_count=len(mails),catalog_drift=not base or base!=c['base'])
+        current['deadline']=deadlines.evaluate(self,c,mails)
         if c.get('general_campaign_id'):
             issues=[self.db.get('issue',key) for key in c.get('issues',[])]
             states={x.get('state') for x in issues if x}
             current['publication_status']='uncertain' if 'uncertain' in states else 'published' if 'published' in states else 'prepared' if states else 'none'
         return current
-    def listing(self):
+    def all_cases(self):
         stored=self.db.all('case');ids={x['id'] for x in stored}
         workspace=general.get_workspace(self)['workspace']
         catalog_cases=self.catalog['cases'] if workspace['starter_pack']=='civicresultmaps' else []
-        cases=stored+[self.case(x['id']) for x in catalog_cases if x['id'] not in ids]
+        return stored+[self.case(x['id']) for x in catalog_cases if x['id'] not in ids]
+    def listing(self):
+        workspace=general.get_workspace(self)['workspace']
+        cases=self.all_cases()
         messages=self.mails()
         summaries=[{k:v for k,v in self.view_case(c,messages).items() if k not in ('body','requests')} for c in sorted(cases,key=lambda c:(c['state'],c['id']))]
         return {'catalog':{**self.catalog,'cases':summaries},
                 'unassigned':[{k:v for k,v in m.items() if k not in ('body','attachments','raw_blob_id')} for m in messages if not m.get('case_id')][:200],
                 'unassigned_total':sum(not m.get('case_id') for m in messages),'sync':self.db.all('sync'),
                 'private_storage':str(self.db.root),'email':connector.account_summary(self.mail_store).get('email') or '',
-                'workspace':workspace,'equipment_campaign':equipment.overview(self),
+                'workspace':workspace,'equipment_campaign':equipment.overview(self),'deadlines':deadlines.overview(self),
                 'destinations':integrations.list_destinations(self)['destinations']}
     def detail(self,key,before_message_id=None,artifact_offset=0):
         c=self.case(key)
@@ -170,6 +176,9 @@ class Service:
             elif d['state'] not in ('draft',):c['stage']='attention'
             self.save(c)
     def _dispatch(self,name,args):
+        if name in contacts.ARGUMENTS:return contacts.dispatch(self,name,args)
+        if name=='desk_get_deadlines':return deadlines.overview(self,args.get('case_id'))
+        if name=='desk_save_deadline_tracking':return deadlines.save_tracking(self,args)
         if name in integrations.ARGUMENTS:return integrations.dispatch(self,name,args)
         if name=='desk_get_workspace':return general.get_workspace(self)
         if name=='desk_save_workspace':return general.save_workspace(self,args)
@@ -213,6 +222,11 @@ class Service:
                         'private_profile_note':'Optional personal fields are inserted only through explicitly required matching template fields. Review literal template exports before sharing.'},
                     'equipment_campaign':{'id':equipment.ID,'categories':equipment.CATEGORIES,'phases':equipment.PHASES,
                         'policy':equipment.POLICY,'tools':['desk_get_equipment_campaign','desk_create_equipment_request','desk_save_equipment_state','desk_save_equipment_progress']},
+                    'deadline_tools':['desk_get_deadlines','desk_save_deadline_tracking'],
+                    'county_contact_tools':list(contacts.ARGUMENTS),
+                    'county_contact_policy':contacts.POLICY,
+                    'county_research_execution':'Create a scoped gap batch, then have connected research agents claim up to five tasks per worker, research official sources and return dated evidence. No embedded model or automatic sending.',
+                    'deadline_policy':'Source-linked planning estimates, not findings of legal violations. Original accepted submission anchors the clock. Review receipt, jurisdiction holidays, replies and extensions. No automatic sends or mailbox polling.',
                     'steps':[
                         {'task':'Inspect requests and route using current official sources','tools':['desk_list_cases','desk_get_case','desk_save_case','desk_clone_case']},
                         {'task':'Prepare exact correspondence; optional message ID preserves reply/follow-up chain','tools':['desk_prepare_email'],'sends':False},

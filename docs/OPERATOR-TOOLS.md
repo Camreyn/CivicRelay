@@ -43,6 +43,7 @@ approval before sending or fees; research/draft creation alone does not authoriz
 | Inspect account/storage policy | `desk_status` |
 | Discover exact form fields, choices, state/status labels and workflow | `desk_get_workflow` |
 | Read request queue and a specific case | `desk_list_cases`, `desk_get_case` |
+| Read sourced timing estimates; save reviewed receipt/response/next-event evidence | `desk_get_deadlines`, `desk_save_deadline_tracking` |
 | Save correspondence, routing, status and private notes | `desk_save_case` |
 | Create a custodian-specific request | `desk_clone_case` |
 | Check for new headers and find saved/unassigned messages | `desk_sync_mail`, `desk_list_messages` |
@@ -57,9 +58,33 @@ approval before sending or fees; research/draft creation alone does not authoriz
 
 ## Working in the visible page
 
+For county request visibility, use [county status](COUNTY-STATUS.md).
+`desk_list_counties` with `state` and `include_requests: true` returns each county's
+saved request status, exact case IDs, reply counts and timing. Optional `workflow`
+and `campaign_id` filters keep campaigns separate. Unmatched county cases and
+non-county cases stay visible separately; this read never checks the mailbox.
+
+For county routing, use [County contacts & research](CONTACT-RESEARCH.md).
+`desk_list_counties` includes every county/equivalent in the selected state;
+`desk_find_contacts` returns reusable evidence, missing/stale roles and exact
+saved-case leads. `desk_create_contact_batch` queues gaps; connected workers
+claim, research, complete or release tasks through the corresponding contact
+tools. Sources, source-check dates, collection timestamps and history stay private.
+The app does not launch workers itself. A completed research pass may still
+have unresolved emails. Contact verification never authorizes a send or fee.
+
+For deadline work, use the [deadline guide](DEADLINES.md). Read the queue and
+mailbox freshness before reviewing linked notices. An automatic date is always
+an estimate; a date recorded by an assistant is operator-reviewed evidence, not
+an independent legal determination by the app. Partial timing edits preserve
+unmentioned fields and require the current case revision. No deadline operation
+sends mail, accepts fees, files an appeal or changes correspondence status.
+
 1. `records_read_overview`, `records_select_state`, `records_filter_queue` and
    `records_open_case` inspect/navigate the existing dashboard.
-   The original `records_sync_headers` shortcut remains available for mailbox checks.
+   Use canonical `desk_sync_mail` for mailbox checks and page refresh. Its former
+   duplicate `records_sync_headers` alias is no longer registered; this keeps the
+   expanded WebMCP surface within a 64-tool budget without removing any backend action.
 2. `records_read_workspace` returns current unsaved correspondence, intake fields,
    saved case revision and the transient `workspace_version`. Always reread after
    a stale-version error; never assume that the visible form was saved.

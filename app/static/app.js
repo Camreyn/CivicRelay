@@ -2,6 +2,9 @@ import {createWorkspace} from '/workspace.js';
 import {registerPageTools} from '/page-tools.mjs';
 import {createCampaignView,campaignLabels} from '/equipment-campaign.js';
 import {createGeneralWorkspace} from '/general-workspace.js';
+import {createDeadlineView} from '/deadlines.js';
+import {createContactView} from '/contacts.js';
+import {createCountyProgress} from '/county-progress.js';
 const $=id=>document.getElementById(id);
 const labels={none:'No prepared request',routing:'Routing needed',draft:'Draft',waiting:'Awaiting reply',new:'New reply',attention:'Action needed',ready:'Ready for review',submitted:'Submitted',closed:'Closed'};
 let data,geometry,selected='IN',selectedCase=null,mode='records',showGeneralMap=false;
@@ -11,13 +14,14 @@ function el(tag,text,cls){const n=document.createElement(tag);if(text!==undefine
 function badge(status){const n=el('span',undefined,'badge');n.append(el('i',undefined,`dot ${status}`),el('span',labels[status]));return n;}
 function status(c){return c.status || (c.recipient?'draft':'routing');}
 function aggregate(code){if(mode==='equipment')return data.equipment_campaign?.states.find(s=>s.state===code)?.status||'not_started';const all=recordCases().filter(c=>c.state===code).map(status);return ['new','attention','routing','ready','waiting','draft','submitted','closed'].find(s=>all.includes(s))||'none';}
+function timingForState(code){const cases=data.catalog.cases.filter(c=>c.state===code&&(mode==='equipment'?c.campaign_id===data.equipment_campaign?.id:recordCases().includes(c)));const states=cases.map(c=>c.deadline?.status);return states.includes('overdue')?'overdue':states.some(s=>['due_today','due_soon'].includes(s))?'soon':'';}
 function notice(text,error=false){$('notice').textContent=text;$('notice').className=error?'error':'';}
 async function api(path,body){const r=await fetch(path,body===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json','X-Records-Desk':'1'},body:JSON.stringify(body)});const j=await r.json();if(!r.ok||j.ok===false){const e=Error(j.error||'The operation could not be completed.');e.sendNotStarted=j.send_not_started===true;throw e;}return j;}
-function selectState(code){selected=code;$('state-select').value=code;renderMap();renderState();}
+function selectState(code){selected=code;$('state-select').value=code;renderMap();renderState();countyView.contextChanged();}
 function renderMap(){
  const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 870 560');
- for(const state of geometry.states){const g=document.createElementNS(ns,'g');g.setAttribute('class',`state ${selected===state.code?'selected':''}`);g.dataset.status=aggregate(state.code);g.setAttribute('tabindex','0');g.setAttribute('role','button');g.setAttribute('aria-label',`${state.name}: ${mapLabel(aggregate(state.code))}`);g.setAttribute('aria-pressed',String(selected===state.code));
- const title=document.createElementNS(ns,'title');title.textContent=`${state.name} · ${mapLabel(aggregate(state.code))}`;g.append(title);
+ for(const state of geometry.states){const g=document.createElementNS(ns,'g');g.setAttribute('class',`state ${selected===state.code?'selected':''}`);g.dataset.status=aggregate(state.code);g.dataset.state=state.code;g.dataset.deadline=timingForState(state.code);const timing=g.dataset.deadline==='overdue'?' · Past timing date; verify evidence':g.dataset.deadline==='soon'?' · Timing checkpoint due soon':'';g.setAttribute('tabindex','0');g.setAttribute('role','button');g.setAttribute('aria-label',`${state.name}: ${mapLabel(aggregate(state.code))}${timing}`);g.setAttribute('aria-pressed',String(selected===state.code));
+ const title=document.createElementNS(ns,'title');title.textContent=`${state.name} · ${mapLabel(aggregate(state.code))}${timing}`;g.append(title);
  const path=document.createElementNS(ns,'path');path.setAttribute('d',state.path);g.append(path);
  if(state.callout){const line=document.createElementNS(ns,'line');['x1','y1','x2','y2'].forEach((k,i)=>line.setAttribute(k,[...state.anchor,state.x-14,state.y-4][i]));g.append(line);}
  const text=document.createElementNS(ns,'text');text.setAttribute('x',state.x);text.setAttribute('y',state.y);text.setAttribute('text-anchor','middle');text.textContent=state.code;g.append(text);
@@ -38,35 +42,39 @@ function renderQueue(){
 }
 function renderStats(){const cases=recordCases(),counts=data.equipment_campaign?.counts;const stats=mode==='equipment'&&counts?[['States + DC tracked',counts.jurisdictions_tracked],['Started',counts.states_started],['Not started',counts.states_not_started],['Requests with send receipt',counts.requests_with_send_confirmation]]:[['Prepared requests',cases.length],['Awaiting reply',cases.filter(c=>status(c)==='waiting').length],['New replies',cases.filter(c=>status(c)==='new').length],mode==='general'?['Records received',cases.filter(c=>c.tracking?.coverage==='received').length]:['Ready for review',cases.filter(c=>status(c)==='ready').length]];$('stats').replaceChildren(...stats.map(([label,value])=>{const n=el('div',undefined,'stat');n.append(el('strong',String(value)),el('span',label));return n;}));$('state-count').textContent=mode==='equipment'?`${counts?.states_started||0} started · ${counts?.states_not_started??51} not started`:`${new Set(cases.map(c=>c.state).filter(Boolean)).size} states with requests`;}
 const op=async(tool,args={})=>(await api('/api/operation',{tool,arguments:args})).result;
-async function refresh(){data=await api('/api/bootstrap');if($('workspace-brand'))$('workspace-brand').textContent=(data.workspace?.organization||data.workspace?.name||'CivicRelay')+' / PRIVATE WORKSPACE';renderStats();renderMap();renderState();renderQueue();campaign.renderQueue();workspace.renderInbox();}
+async function refresh(){data=await api('/api/bootstrap');if($('workspace-brand'))$('workspace-brand').textContent=(data.workspace?.organization||data.workspace?.name||'CivicRelay')+' / PRIVATE WORKSPACE';renderStats();renderMap();renderState();renderQueue();campaign.renderQueue();workspace.renderInbox();deadlineView.render();await countyView.refresh();}
 const workspace=createWorkspace({$,el,op,notice,labels,badge,getData:()=>data,refresh,selectState});
 const campaign=createCampaignView({$,el,getData:()=>data,selectState,openCase});
-const general=createGeneralWorkspace({$,el,op,notice,openCase,beforeNavigate:()=>{workspace.assertClean();$('case-workspace').hidden=true;},afterChange:refresh,toggleMap:()=>{showGeneralMap=!showGeneralMap;document.querySelector('.desk-grid').hidden=!showGeneralMap;}});
+const contactView=createContactView({$,el,op,notice,getState:()=>selected,getStates:()=>data.catalog.states});
+const countyView=createCountyProgress({$,el,op,notice,getState:()=>selected,getMode:()=>mode,getStates:()=>data.catalog.states,selectState,openCase});
+const deadlineView=createDeadlineView({$,el,op,notice,getData:()=>data,afterChange:async()=>{await refresh();await workspace.afterOperation();},guard:()=>workspace.assertClean(),openCase,onClockChange:()=>{renderMap();countyView.refresh();}});
+const general=createGeneralWorkspace({$,el,op,notice,openCase,beforeNavigate:()=>{workspace.assertClean();deadlineView.assertClean();$('case-workspace').hidden=true;},afterChange:refresh,toggleMap:()=>{showGeneralMap=!showGeneralMap;document.querySelector('.desk-grid').hidden=!showGeneralMap;}});
 async function changeMode(value){
- try{workspace.assertClean();}catch(e){$('campaign-mode').value=mode;throw e;}
+ try{workspace.assertClean();deadlineView.assertClean();}catch(e){$('campaign-mode').value=mode;throw e;}
  const changed=mode!==value;mode=value;$('campaign-mode').value=mode;const isGeneral=mode==='general';
  $('existing-queue').hidden=mode==='equipment';$('campaign-panel').hidden=mode!=='equipment';$('general-workspace').hidden=!isGeneral;$('campaign-policy').hidden=mode!=='equipment';document.querySelector('.desk-grid').hidden=isGeneral&&!showGeneralMap;$('stats').hidden=false;if(changed)$('case-workspace').hidden=true;document.querySelector('.inbox-panel').hidden=false;
  const legend=mode==='equipment'?campaignLabels:labels;$('legend').replaceChildren(...Object.entries(legend).map(([k,v])=>{const n=el('span');n.append(el('i',undefined,`dot ${k}`),el('span',v));return n;}));
- renderStats();renderMap();renderState();renderQueue();campaign.renderQueue();if(isGeneral)await general.load();
+ $('legend').append(el('span','Outline: red = past timing date; amber = due soon. Current workflow only.'));
+ renderStats();renderMap();renderState();renderQueue();campaign.renderQueue();countyView.contextChanged();if(isGeneral)await general.load();
 }
-async function openCase(id){try{workspace.assertClean();await workspace.openCase(id);selectedCase=id;}catch(e){notice(e.message,true);throw e;}}
+async function openCase(id){try{workspace.assertClean();deadlineView.assertClean();await workspace.openCase(id);selectedCase=id;const b=el('button','View deadline sources & timing','timing-case-button');b.onclick=()=>deadlineView.inspect(id).catch(e=>notice(e.message,true));$('case-workspace').prepend(b);}catch(e){notice(e.message,true);throw e;}}
 async function sync(){notice('Checking new project mailbox headers. No mail will be sent.');const r=await op('desk_sync_mail');await refresh();await workspace.refreshDetail();notice(`${r.new_headers} new headers synced. ${r.folders.some(f=>f.more)?'More mail remains; check again to continue.':'Mailbox check complete.'} Proton read flags were not changed.`);return r;}
 async function registerTools(){
  const life=new AbortController();window.addEventListener('pagehide',()=>life.abort(),{once:true});
  const report=await registerPageTools(document.modelContext,{
   workspace,
-  overview:()=>({workflow:mode,equipment_campaign_counts:data.equipment_campaign?.counts,selected_state:selected,queue_filter:$('filter').value,cases:data.catalog.cases.map(c=>({id:c.id,state:c.state,status:c.status,revision:c.revision,unread_count:c.unread_count})),states:data.catalog.states.map(s=>({code:s.code,name:s.name,status:aggregate(s.code)})),unassigned_total:data.unassigned_total}),
+  overview:()=>({workflow:mode,equipment_campaign_counts:data.equipment_campaign?.counts,county_view:countyView.snapshot(),deadlines:data.deadlines,selected_state:selected,queue_filter:$('filter').value,cases:data.catalog.cases.map(c=>({id:c.id,state:c.state,status:c.status,revision:c.revision,unread_count:c.unread_count})),states:data.catalog.states.map(s=>({code:s.code,name:s.name,status:aggregate(s.code)})),unassigned_total:data.unassigned_total}),
   openCase:async id=>{if(!data.catalog.cases.some(c=>c.id===id))throw Error('Choose a known case ID.');await openCase(id);return workspace.snapshot();},
   selectState:code=>{if(!data.catalog.states.some(s=>s.code===code))throw Error('Choose a known state code.');selectState(code);return {selected_state:selected};},
   filterQueue:value=>{if(!Array.from($('filter').options).some(o=>o.value===value))throw Error('Choose an available queue filter.');$('filter').value=value;renderQueue();return {queue_filter:value};},
   backend:async(name,args,readOnly)=>{
    const result=await op(name,args);
-   if(!readOnly){try{await refresh();await workspace.afterOperation();}catch{notice('The operation completed but the view could not refresh. Inspect its saved receipt; do not retry a send or publication.',true);return {...result,dashboard_refresh_warning:'Operation completed; visible refresh failed. Do not retry external writes.'};}}
-   if(name==='desk_list_cases')return {cases:result.catalog.cases.map(c=>({id:c.id,state:c.state,family:c.family_label,status:c.status,revision:c.revision,unread_count:c.unread_count})),unassigned:result.unassigned,unassigned_total:result.unassigned_total,sync:result.sync};
+   if(!readOnly){try{await refresh();await workspace.afterOperation();if(name.includes('contact'))await contactView.afterOperation();}catch{notice('The operation completed but the view could not refresh. Inspect its saved receipt; do not retry a send or publication.',true);return {...result,dashboard_refresh_warning:'Operation completed; visible refresh failed. Do not retry external writes.'};}}
+   if(name==='desk_list_cases')return {cases:result.catalog.cases.map(c=>({id:c.id,state:c.state,family:c.family_label,status:c.status,revision:c.revision,unread_count:c.unread_count,deadline:c.deadline})),unassigned:result.unassigned,unassigned_total:result.unassigned_total,sync:result.sync,deadlines:result.deadlines};
    return result;
   },
  },{signal:life.signal,onError:()=>notice('Some page tools could not register. Native Records Desk tools remain available.',true)});
  if(report.supported&&!report.failed.length)$('connection').textContent='Local workspace · Assistant tools ready';
 }
 async function boot(){try{[data,geometry]=await Promise.all([api('/api/bootstrap'),fetch('/map.json').then(r=>r.json())]);$('state-select').replaceChildren(...data.catalog.states.map(s=>{const o=el('option',s.name);o.value=s.code;return o;}));$('state-select').onchange=e=>selectState(e.target.value);$('filter').onchange=renderQueue;for(const s of ['draft','attention','ready','submitted','closed']){const o=el('option',labels[s]);o.value=s;$('filter').append(o);}const active=data.equipment_campaign?.states.find(s=>s.phase!=='not_started');if(active)selected=active.state;$('campaign-mode').onchange=e=>changeMode(e.target.value).catch(e=>notice(e.message,true));await changeMode(active?'equipment':data.workspace?.starter_pack==='blank'?'general':'records');if($('workspace-brand'))$('workspace-brand').textContent=(data.workspace?.organization||data.workspace?.name||'CivicRelay')+' / PRIVATE WORKSPACE';selectState(selected);workspace.renderInbox();$('sync').disabled=false;$('sync').onclick=async()=>{const b=$('sync');b.disabled=true;try{await sync();}catch(e){notice(e.message,true);}finally{b.disabled=false;}};notice('Private records workspace ready. Exact previews, saved receipts, and separate publication tracking are available.');registerTools();}catch(e){notice(e.message,true);}}
-boot();
+boot().then(()=>{if(data&&geometry)deadlineView.start();});

@@ -8,8 +8,8 @@ import {Client} from '@modelcontextprotocol/client';
 import {StdioClientTransport} from '@modelcontextprotocol/client/stdio';
 import {TOOLS} from './tools.mjs';
 const directory=path.dirname(fileURLToPath(import.meta.url));
-test('40 narrow schemas have no credential, shell, path, host, or policy override',()=>{
- assert.equal(TOOLS.length,40);
+test('53 narrow schemas have no credential, shell, path, host, or policy override',()=>{
+ assert.equal(TOOLS.length,53);
  for(const t of TOOLS){assert.equal(t.schema.additionalProperties,false);for(const key of Object.keys(t.schema.properties))assert.doesNotMatch(key,/password|command|path|host|approve|confirm_send/);}
  for(const name of ['desk_send_email','desk_publish_intake']){const t=TOOLS.find(t=>t.name===name);assert.equal(t.readOnly,false);assert.ok(t.schema.required.includes('expected_digest'));assert.equal(Object.hasOwn(t.schema.properties,'confirmation'),false);}
 });
@@ -22,12 +22,21 @@ for(const negotiationMode of ['legacy','auto'])test(`actual MCP STDIO handshake 
   assert.equal(status.structuredContent.result.requires_desktop_confirmation,false);
   const cases=await client.callTool({name:'desk_list_cases',arguments:{}});assert.equal(cases.structuredContent.result.cases.length,0,'fresh installs start blank');
   assert.equal(cases.structuredContent.result.unassigned_total,0);
+  const deadlines=await client.callTool({name:'desk_get_deadlines',arguments:{}});assert.equal(deadlines.structuredContent.ok,true);assert.equal(deadlines.structuredContent.result.network_accessed,false);assert.deepEqual(deadlines.structuredContent.result.cases,[]);
   const workspace=await client.callTool({name:'desk_get_workspace',arguments:{}});assert.equal(workspace.structuredContent.result.workspace.starter_pack,'blank');
   const saved=await client.callTool({name:'desk_save_workspace',arguments:{revision:0,name:'Synthetic workspace',starter_pack:'civicresultmaps'}});assert.equal(saved.structuredContent.ok,true);
   const legacy=await client.callTool({name:'desk_list_cases',arguments:{}});assert.equal(legacy.structuredContent.result.cases.length,14,'opt-in pack retains exact legacy cases');
   const campaign=await client.callTool({name:'desk_get_equipment_campaign',arguments:{}});assert.equal(campaign.structuredContent.ok,true);assert.equal(campaign.structuredContent.result.states.length,51);assert.equal(campaign.structuredContent.result.counts.states_not_started,51);
   const workflow=await client.callTool({name:'desk_get_workflow',arguments:{}});assert.equal(workflow.structuredContent.ok,true);assert.equal(workflow.structuredContent.result.states.length,51);assert.equal(workflow.structuredContent.result.intake.template,'records-response.yml');
   const inbox=await client.callTool({name:'desk_list_messages',arguments:{case_id:'',limit:10}});assert.equal(inbox.structuredContent.result.messages.length,0);assert.equal(inbox.structuredContent.result.network_accessed,false);
+  const researchCall=async(name,args={})=>{const r=await client.callTool({name,arguments:args});assert.equal(r.structuredContent.ok,true,r.structuredContent.error);return r.structuredContent.result;};
+  assert.equal((await researchCall('desk_list_counties',{state:'MI'})).counties.length,83);
+  const batch=(await researchCall('desk_create_contact_batch',{state:'MI',county_ids:['county:26001'],roles:['public_records'],request_key:'synthetic-native'})).batch;
+  const task=(await researchCall('desk_claim_contact_tasks',{batch_id:batch.id,worker_id:'synthetic-native-worker',limit:1})).tasks[0];
+  const day=new Date().toISOString().slice(0,10);
+  await researchCall('desk_complete_contact_task',{batch_id:batch.id,task_id:task.id,lease_token:task.lease_token,result:{outcome:'blocked',checked_on:day,contacts:[],sources:[],note:'Synthetic unavailable source; no browser or real research attempted.'}});
+  const progress=(await researchCall('desk_get_contact_batch',{batch_id:batch.id})).batch;assert.equal(progress.status,'complete');assert.equal(progress.unresolved_tasks,1);
+  assert.equal((await researchCall('desk_get_contact',{county_id:'county:26001',role:'public_records'})).history.length,1);
   const missing=await client.callTool({name:'desk_get_intake',arguments:{issue_id:'does-not-exist'}});assert.equal(missing.isError,true);
   for(const [name,args] of [['desk_status',{password:'forbidden'}],['desk_send_email',{case_id:'source-IN-2024'}],['desk_get_case',{}]]){const r=await client.callTool({name,arguments:args});assert.equal(r.isError,true);}
   for(const [name,args,expected] of [

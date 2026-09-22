@@ -10,7 +10,8 @@ import uuid
 from runtime import REPO
 from secure_store import ConnectorError, WindowsProtector, records_root, guard_repository_location
 
-KINDS={'case','mail','body','blob','artifact','sync','issue','event','campaign','workspace','template','destination'}
+KINDS={'case','mail','body','blob','artifact','sync','issue','event','campaign','workspace','template','destination','contact','contact_batch'}
+IDENTIFIED_KINDS=KINDS-{'blob','sync'}
 
 class Database:
     def __init__(self,root=None,protector=None):
@@ -50,7 +51,7 @@ class Database:
             raise ConnectorError('Encrypted record identity does not match its index. Stop and review local storage.')
         data=value.get('value')
         if not isinstance(data,dict):raise ConnectorError('Encrypted record value is invalid.')
-        if row['kind'] in {'case','mail','body','artifact','issue','event','campaign','workspace','template','destination'} and data.get('id')!=row['id']:
+        if row['kind'] in IDENTIFIED_KINDS and data.get('id')!=row['id']:
             raise ConnectorError('Private record inner identity does not match its envelope.')
         if row['kind']=='mail':
             expected=f"{data.get('folder')}:{data.get('uid_validity')}:{data.get('uid')}"
@@ -66,19 +67,26 @@ class Database:
         with self.connect(True) as con:
             return [self.decode(r) for r in con.execute('SELECT * FROM records WHERE kind=? ORDER BY id',(kind,))] if con else []
     def put(self,kind,key,value):
-        if kind not in KINDS or not isinstance(key,str) or not 1<=len(key)<=250:raise ConnectorError('Invalid private record identity.')
-        if kind in {'case','mail','body','artifact','issue','event','campaign','workspace','template','destination'} and value.get('id')!=key:raise ConnectorError('Private record identity mismatch.')
+        self.put_many([(kind,key,value)])
+    def put_many(self,records):
+        # Commit a research result and its task receipt together, or neither.
+        if not isinstance(records,list) or not 1<=len(records)<=10:raise ConnectorError('Invalid private transaction size.')
+        if len({(k,i) for k,i,_ in records})!=len(records):raise ConnectorError('Duplicate private transaction identity.')
+        for kind,key,value in records:
+            if kind not in KINDS or not isinstance(key,str) or not 1<=len(key)<=250:raise ConnectorError('Invalid private record identity.')
+            if not isinstance(value,dict) or (kind in IDENTIFIED_KINDS and value.get('id')!=key):raise ConnectorError('Private record identity mismatch.')
         with self.connect() as con:
             con.execute('BEGIN IMMEDIATE')
-            row=con.execute('SELECT * FROM records WHERE kind=? AND id=?',(kind,key)).fetchone()
-            if row:self.decode(row)
-            if not row and con.execute('SELECT COUNT(*) FROM records').fetchone()[0]>=20000:
-                raise ConnectorError('Private record capacity reached. Archive records through a reviewed maintenance step.')
             if (self.root/'records.sqlite3').stat().st_size>750*1024*1024:
                 raise ConnectorError('The local 750 MiB capacity limit was reached. No records were discarded.')
-            rev=(row['rev'] if row else 0)+1
-            payload=self.protector.protect({'kind':kind,'id':key,'rev':rev,'value':value})
-            con.execute('INSERT INTO records VALUES(?,?,?,?) ON CONFLICT(kind,id) DO UPDATE SET rev=excluded.rev,payload=excluded.payload',(kind,key,rev,payload))
+            for kind,key,value in records:
+                row=con.execute('SELECT * FROM records WHERE kind=? AND id=?',(kind,key)).fetchone()
+                if row:self.decode(row)
+                if not row and con.execute('SELECT COUNT(*) FROM records').fetchone()[0]>=20000:
+                    raise ConnectorError('Private record capacity reached. Archive records through a reviewed maintenance step.')
+                rev=(row['rev'] if row else 0)+1
+                payload=self.protector.protect({'kind':kind,'id':key,'rev':rev,'value':value})
+                con.execute('INSERT INTO records VALUES(?,?,?,?) ON CONFLICT(kind,id) DO UPDATE SET rev=excluded.rev,payload=excluded.payload',(kind,key,rev,payload))
     @contextmanager
     def operation(self):
         # Serialize mutations across the web server and independently launched MCP workers.

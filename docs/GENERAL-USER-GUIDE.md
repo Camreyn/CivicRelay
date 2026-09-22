@@ -63,8 +63,29 @@ notes and verified dates. Select a linked incoming message as evidence for a
 response; use **Load older response evidence** if necessary. Unassigning or
 moving that evidence resets the response stage, but retains notes and separately
 assessed coverage. A deadline requires its kind, official source, starting-event
-basis and checked date. No legal deadline or fee is automatically accepted or
-calculated. A status is a workflow aid, not a substantive finding.
+basis and checked date. The separate [deadline queue](DEADLINES.md) automatically
+calculates sourced planning estimates and tracks reviewed next events. It does
+not determine legal violations or accept fees. A status is a workflow aid, not
+a substantive finding.
+
+## County request map and replies
+
+Open **County request status · map & replies**, choose a state and select
+**General records desk** in its workflow selector. The panel is available even when
+the national map is hidden. Search or filter counties, then select a county to
+open its individual requests and saved replies. Multiple requests remain
+separate, and counties without a matching request stay visible.
+
+For a county target, use level `county`, the correct state, and the canonical
+`county:<five-digit FIPS>` ID returned by `desk_list_counties`. Older targets can
+match by their exact full official county name and state. Similar names are not
+guessed; unmatched county cases appear separately. State or municipal requests
+never supply county coverage. See [county status](COUNTY-STATUS.md) for colors,
+matching, receipt limits and the read-only assistant workflow.
+
+**Refresh saved status** rereads local records; it does not check the inbox.
+Use **Check for replies** only when an explicit mailbox check is wanted. A new
+reply or acknowledgment does not mean all requested records were supplied.
 
 ## Exports and publication
 

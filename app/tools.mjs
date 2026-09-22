@@ -23,7 +23,7 @@ export function invokeWorker(name,args,signal){return new Promise(resolve=>{
  child.stderr.on('data',c=>{errs+=c.length;if(errs>8192)stop();});child.stdin.on('error',()=>{});
  child.on('error',()=>finish({ok:false,error:'Could not start private records worker.'}));
  child.on('close',code=>{if(done)return;try{const r=JSON.parse(Buffer.concat(chunks).toString('utf8'));if(code||typeof r.ok!=='boolean')throw Error();
-   if(name==='desk_list_cases'&&r.ok){r.result={cases:r.result.catalog.cases.map(c=>({id:c.id,state:c.state,family:c.family_label,status:c.status,revision:c.revision,unread_count:c.unread_count})),unassigned:r.result.unassigned,unassigned_total:r.result.unassigned_total,sync:r.result.sync};}
+   if(name==='desk_list_cases'&&r.ok){r.result={cases:r.result.catalog.cases.map(c=>({id:c.id,state:c.state,family:c.family_label,status:c.status,revision:c.revision,unread_count:c.unread_count,deadline:c.deadline})),unassigned:r.result.unassigned,unassigned_total:r.result.unassigned_total,sync:r.result.sync,deadlines:r.result.deadlines};}
    finish(r);}catch{finish({ok:false,error:'Worker result unavailable. Private diagnostics were discarded.'});}});
  child.stdin.end(payload);
 });}

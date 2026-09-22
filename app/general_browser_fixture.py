@@ -64,7 +64,7 @@ if __name__ == '__main__':
             if raw is None: raise RuntimeError('Synthetic MIME record was not seeded.')
             return raw
         mailbox.read_raw=fixture_read_raw
-        allowed={'desk_status','desk_list_cases','desk_get_case','desk_save_case','desk_get_workspace','desk_save_workspace',
+        allowed={'desk_get_deadlines','desk_status','desk_list_cases','desk_get_case','desk_save_case','desk_get_workspace','desk_save_workspace',
                  'desk_list_templates','desk_get_template','desk_save_template','desk_preview_template','desk_export_template','desk_import_template',
                  'desk_list_campaigns','desk_save_campaign','desk_create_request','desk_save_request_progress',
                  'desk_list_destinations','desk_save_destination','desk_prepare_publication','desk_export_case',

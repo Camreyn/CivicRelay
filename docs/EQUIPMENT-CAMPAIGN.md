@@ -85,7 +85,8 @@ retain correspondence and original encrypted attachments.
 No statutory countdown starts from draft creation. A response/appeal date requires
 the official source, verification date, deadline kind, and calculation basis,
 including the actual receipt/denial event and relevant business-day rules. There
-is no automatic legal deadline calculator. Unknown dates stay blank; procedure
+is a separate [source-linked planning-clock queue](DEADLINES.md), not an automatic
+legal determination. Unsupported dates stay blank; procedure
 notes record remaining verification. Fee notes are estimates/correspondence, not
 payment approval. The app cannot accept or pay fees.
 

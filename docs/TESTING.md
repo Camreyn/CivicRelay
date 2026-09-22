@@ -36,11 +36,12 @@ Bridge account, GitHub authentication, API key or real email is required.
 | Encryption/storage guards | Windows DPAPI round trips using synthetic values, tamper/link/repository-path rejection | Not a third-party cryptographic/security audit |
 | Send → receipt | Direct send without Tkinter/confirmation arguments, mocked SMTP, exact digest, quota, concurrency, uncertain outcomes and duplicate prevention | No real message sent; delivery is not tested |
 | Intake → public issue/export | Direct actions without approval modules, mocked GitHub, exact form/snapshot identity, private-link guards and uncertain-publication handling; synthetic ZIP byte checks | No public issue or real-record export created by tests |
-| Docs → implementation | Local links/npm commands checked; 48-tool reference compared to source schemas | External pages and prose still need human review |
+| Docs → implementation | Local links/npm commands checked; 61-tool reference compared to source schemas | External pages and prose still need human review |
 | Fresh workspace → templates → campaign | Synthetic strict-schema, safe-rendering, immutable-version, private-field, idempotency, target retention and linked-evidence tests | Literal template text still needs privacy and procedural review |
 | Configured destination → exact preview → receipt | Synthetic destination-revision invalidation, exact repository URL verification, unresolved-attempt locks and local case ZIP checks | Remote form schema/labels are not fetched or validated automatically |
 | Account profile → storage/draft | Synthetic v1 compatibility, fresh v2 identities, display-name/header and profile digest binding, ambiguous-store refusal | No new real account is enrolled or used by tests |
 | Equipment campaign UI → HTTP → database | Actual handler and isolated synthetic store; 51-state tracker, remaining-state filter, saved notes survive reload, unverified dates rejected | No actual agency deadline, fee acceptance or email delivery tested |
+| Deadline queue → API → saved evidence | Synthetic clocks, map outlines, official links, dirty-form preservation, recorded commitments survive reload and automatic read-only refresh | Not a legal opinion, complete state/local holiday calendar or live statutory-change monitor |
 | Source → publication | Git-visible path allowlist, regular-file checks, limited token/key markers, staged blobs and catalog/form integrity | Not comprehensive redaction, secret detection or permission review |
 
 The browser fixture binds to an ephemeral port, denies non-fixture network
@@ -56,7 +57,7 @@ suite. It covers the configuration a new user actually generates, not just
 tools advertised directly by the servers:
 
 - Parses generated TOML with Python's standard-library `tomllib`; requires all
-  40 records and 8 mail tools exactly once. Negative fixtures detect missing,
+  53 records and 8 mail tools exactly once. Negative fixtures detect missing,
   duplicate, stale or disabled tools and a disabled server.
 - Checks absolute local entry points and the existing host permission defaults
   and per-tool overrides without opening or changing any real `.codex` file.
@@ -80,6 +81,29 @@ They do not exercise Codex's UI, project trust, permission prompts or a particul
 model's reasoning. No mailbox is enrolled or contacted, no real message is sent,
 and no GitHub issue is created. SMTP and publication behavior remain covered by
 the separate mocked tests above, not by a live delivery claim.
+
+## County research regression
+
+County contact research adds synthetic source/date/role validation, fresh/stale
+coverage, exact county leads, research leases, idempotent batches, interruption,
+revision conflicts and atomic result/receipt rollback tests. The actual MCP
+handshake exercises a research batch in both supported protocol modes. The
+contact browser story uses the real HTTP handler and disposable storage to test
+lookup, selected counties, two worker claims, saved evidence, unresolved outcomes,
+history, preserved unsaved edits and reload. No live mailbox, real county search,
+model invocation or external write occurs. See [contact research](CONTACT-RESEARCH.md).
+
+## County request-status regression
+
+The county projection tests cover canonical/exact-name matching, workflow
+isolation, all 3,144 inventory/geometry IDs, uncertain sends, linked response
+evidence, closure, mixed requests and read-only operation. The county browser
+story exercises the real local HTTP handler and disposable database: 83 Michigan
+county shapes/list entries, distinct statuses, keyboard selection, exact case and
+reply opening, reviewed-reply refresh, search/filters, state/workflow changes,
+unmatched cases, state-response separation and mobile layout. Both are included
+in the normal unit/browser commands. No real inbox or county outreach is used.
+See [county status](COUNTY-STATUS.md) for interpretation limits.
 
 ## GitHub Actions
 

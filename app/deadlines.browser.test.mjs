@@ -1,0 +1,56 @@
+// Real page -> actual API -> isolated encrypted synthetic store. No live mail.
+import assert from 'node:assert/strict';
+import {spawn} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
+import {tmpdir} from 'node:os';
+import path from 'node:path';
+import {chromium} from 'playwright';
+import {pythonExecutable} from '../runtime-config.mjs';
+
+const fixture=spawn(pythonExecutable(),['-E','-s','-S',fileURLToPath(new URL('./deadlines_browser_fixture.py',import.meta.url))],{cwd:fileURLToPath(new URL('.',import.meta.url)),windowsHide:true,stdio:['ignore','pipe','pipe']});
+let browser,stderr='';fixture.stderr.on('data',c=>stderr+=c.toString());
+try{
+ const ready=await new Promise((resolve,reject)=>{let output='';const timer=setTimeout(()=>reject(Error('Fixture timeout: '+stderr)),20000);fixture.stdout.on('data',c=>{output+=c;if(output.includes('\n')){clearTimeout(timer);try{resolve(JSON.parse(output.split('\n')[0]));}catch(e){reject(e);}}});fixture.on('error',reject);fixture.on('exit',code=>{clearTimeout(timer);reject(Error('Fixture exit '+code+': '+stderr));});});
+ assert.equal(ready.synthetic,true);const origin=`http://127.0.0.1:${ready.port}`;
+ browser=await chromium.launch({headless:true});const page=await browser.newPage({viewport:{width:1440,height:1100}});
+ const errors=[],operations=[],external=[];
+ page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error'&&!m.text().includes('400 (Bad Request)'))errors.push(m.text());});
+ await page.route('**/*',route=>{if(!route.request().url().startsWith(origin+'/')){external.push(route.request().url());return route.abort();}return route.continue();});
+ page.on('request',r=>{if(r.url().endsWith('/api/operation'))operations.push(r.postDataJSON().tool);});
+ await page.clock.install({time:new Date('2026-09-20T18:00:00Z')});
+ await page.goto(origin);await page.getByText('Private records workspace ready.',{exact:false}).waitFor();
+ assert.equal(await page.locator('#map .state').count(),51);
+ assert.match(await page.locator('#deadline-panel').innerText(),/Potentially overdue/);
+ assert.match(await page.locator('#deadline-freshness').innerText(),/Mail may be stale/);
+ assert.equal(await page.locator('[data-state="MI"]').getAttribute('data-deadline'),'overdue');
+ assert.equal(await page.locator('[data-state="PA"]').getAttribute('data-deadline'),'soon');
+ const screenshot=path.join(tmpdir(),'civicrelay-deadlines-synthetic.png');await page.locator('#deadline-panel').screenshot({path:screenshot});
+ const api=async(tool,args={})=>{const response=await page.request.post(origin+'/api/operation',{headers:{Origin:origin,'X-Records-Desk':'1'},data:{tool,arguments:args}});const r=await response.json();if(!r.ok)throw Error(r.error);return r.result;};
+ const clickOperation=async(name,action)=>{const pending=page.waitForResponse(r=>r.url().endsWith('/api/operation')&&r.request().postDataJSON()?.tool===name);await action();const r=await (await pending).json();assert.equal(r.ok,true,r.error);return r.result;};
+ const row=state=>page.locator(`[data-deadline-case="${ready.ids[state]}"]`);
+ await page.locator('#deadline-filter').selectOption('all');
+ assert.match(await row('WI').innerText(),/No fixed statutory day count/);assert.match(await row('CA').innerText(),/Timing basis needs review/);assert.match(await row('SD').innerText(),/Not sent/);
+ await row('MI').getByRole('button').click();await page.locator('#deadline-editor').waitFor();
+ assert.equal(await page.locator('#timing-current a').first().getAttribute('href'),'https://www.legislature.mi.gov/documents/mcl/pdf/mcl-act-442-of-1976.pdf');
+ assert.match(await page.locator('#timing-current').innerText(),/2026-09-17/);
+ await page.locator('#deadline-editor summary').click();
+ await page.locator('#timing-receipt_basis').fill('Unsaved synthetic timing note');
+ await clickOperation('desk_get_deadlines',()=>page.getByRole('button',{name:'Recheck dates',exact:true}).click());
+ assert.equal(await page.locator('#timing-receipt_basis').inputValue(),'Unsaved synthetic timing note');
+ await row('TX').getByRole('button').click();assert.match(await page.locator('#notice').innerText(),/Save timing evidence/);
+ await page.getByRole('button',{name:'Discard timing edits',exact:true}).click();
+ await row('TX').getByRole('button').click();await page.locator('#deadline-editor summary').click();
+ await page.locator('#timing-initial_response').selectOption('satisfied');await page.locator('#timing-response_message_id').selectOption('INBOX:1:1');await page.locator('#timing-response_basis').fill('Synthetic reviewed statutory availability notice.');
+ await page.locator('#timing-next_kind').selectOption('agency_commitment');await page.locator('#timing-next_date').fill('2026-09-23');await page.locator('#timing-next_source').fill('https://example.gov/public-records');await page.locator('#timing-next_checked_date').fill('2026-09-20');await page.locator('#timing-next_message_id').selectOption('INBOX:1:1');await page.locator('#timing-next_basis').fill('Synthetic agency notice promises this date. No fee authorized.');
+ await clickOperation('desk_save_deadline_tracking',()=>page.getByRole('button',{name:'Save timing evidence',exact:true}).click());await page.getByText('Timing evidence saved privately.',{exact:false}).waitFor();
+ let tx=(await api('desk_get_case',{case_id:ready.ids.TX})).case;assert.equal(tx.deadline_tracking.next_date,'2026-09-23');assert.equal(tx.deadline.due_date,'2026-09-23');assert.equal(tx.deadline.checks[0].resolved,true);
+ await page.reload();await page.getByText('Private records workspace ready.',{exact:false}).waitFor();await page.locator('#deadline-filter').selectOption('all');assert.match(await row('TX').innerText(),/2026-09-23/);
+ // Advance only the fixture's clock, then exercise the real minute timer without waiting a minute.
+ await page.request.post(origin+'/__fixture__/advance',{headers:{Origin:origin,'X-Relay-Fixture-Token':ready.token}});
+ const tick=page.waitForResponse(r=>r.url().endsWith('/api/operation')&&r.request().postDataJSON()?.tool==='desk_get_deadlines');await page.clock.fastForward(61000);await tick;
+ await page.waitForFunction(()=>document.querySelector('[data-state="PA"]')?.dataset.deadline==='overdue');
+ assert.equal((await api('desk_get_deadlines',{case_id:ready.ids.PA})).cases[0].status,'overdue');
+ assert.equal(operations.filter(x=>x==='desk_save_deadline_tracking').length,1);assert.equal(operations.filter(x=>/sync|send|publish|export/.test(x)).length,0);
+ assert.deepEqual(external,[]);assert.deepEqual(errors,[]);
+ console.log(JSON.stringify({ok:true,synthetic:true,stories:['queue-map-source-links','no-fixed-clock-and-unsent','dirty-evidence-preserved','reviewed-agency-commitment-persisted','automatic-readonly-clock-refresh'],screenshot,external_actions:0}));
+}finally{await browser?.close();fixture.kill();}

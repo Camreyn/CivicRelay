@@ -17,7 +17,7 @@ if __name__ == '__main__':
         for state in ['AZ','GA','MA','MI','NC','NV','PA','TX','WI']:
             service.dispatch('desk_create_equipment_request', {'state':state,'jurisdiction':'Synthetic state agency','jurisdiction_level':'state'})
         def invoke(name, args):
-            if name not in {'desk_list_cases','desk_get_case','desk_get_workflow','desk_get_equipment_campaign',
+            if name not in {'desk_get_deadlines','desk_list_cases','desk_get_case','desk_get_workflow','desk_get_equipment_campaign',
                             'desk_save_case','desk_save_equipment_state','desk_save_equipment_progress'}:
                 return {'ok':False,'error':'External/mail operations are disabled in this synthetic fixture.'}
             return safe_dispatch(name, args, service)

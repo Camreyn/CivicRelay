@@ -69,6 +69,29 @@ Its catalog, form, map, and provenance bytes remain preserved for compatibility;
 the general workspace does not require the source repository, its GitHub intake,
 or those bundled cases.
 
+## Source-linked timing projections
+
+`app/deadlines.py` reads the versioned `app/deadline-rules.json` registry and saved
+case/draft/mail metadata. `desk_get_deadlines` and `case.deadline` are read-only,
+recomputed projections; they do not bump revisions or write derived statuses.
+The clock anchors the earliest valid accepted initial draft, not `last_sent_at`.
+Rules have scoped receipt adjustments and official citations. Calendar/time-zone
+coverage is intentionally disclosed as a planning estimate, not legal verification.
+
+Reviewed inputs live in the existing encrypted `case.deadline_tracking` object
+and case event trail, with no schema migration or change to old tracking fields.
+`desk_save_deadline_tracking` is revision-controlled. Linked evidence must belong
+to the case and have no thread conflict. Evidence reassignment and new messages
+invalidate the relevant review assumptions without editing transport receipts.
+The initial checkpoint, explicit next checkpoint and legacy recorded dates remain
+distinct. The module never reads bodies, calls a model or accesses the network.
+
+`static/deadlines.js` provides an all-workflow queue, source details and a separate
+evidence editor. Its one-minute visible-page timer reads only `desk_get_deadlines`;
+it preserves unsaved inputs and never synchronizes mail, sends or files appeals.
+Browser and native schemas share `static/deadline-contracts.mjs`. See
+[deadline behavior and limitations](DEADLINES.md).
+
 ## Public request snapshot
 
 The historical snapshot remains distinct from local reusable templates and
@@ -111,6 +134,39 @@ identity. Use the refresh command and review the resulting digest instead.
 The map is derived from the source checkout's county display geometry. It is a
 workflow navigation illustration, not a new official boundary release. This
 extraction does not collect, normalize, or publish new election boundaries.
+
+## County request-status projection
+
+The separate read-only county status projection in `app/county_progress.py`
+uses saved cases, exact county identities, linked response evidence, receipts
+and existing deadline projections. `desk_list_counties` can include it for one
+state without adding a tool. `static/county-progress.js` renders the map/list
+and opens the existing case workspace. The public Census-derived
+`static/county-map.json` is separate from the byte-preserved legacy state map;
+no runtime remote maps or geography writes occur. See [county status](COUNTY-STATUS.md).
+
+## County contact research
+
+`app/contacts.py` owns the county/role directory and leased agent research queue;
+`app/static/contact-contracts.mjs` registers the same 11 operations for native
+MCP and WebMCP. `app/static/contacts.js` provides the dashboard view. See
+[contact research](CONTACT-RESEARCH.md) for schemas, evidence semantics and recovery.
+
+The public `app/counties.json` is a pinned, reproducible Census names/IDs baseline,
+not contact data or a jurisdiction-to-government crosswalk. Saved observations
+use encrypted `contact` records keyed by exact county ID/role. Each retains
+immutable history, source-check dates and server-side collection timestamps.
+Existing exact county-scoped case recipients are read-only leads with no inferred
+role verification. A lookup includes missing inventory entries, not only saved rows.
+
+Each encrypted `contact_batch` embeds bounded state/role tasks. The existing
+cross-process operation lease serializes local mutations; separate 20-minute
+task leases coordinate research outside the app. `Database.put_many` atomically
+commits a returned observation and completion receipt, preserving encryption,
+identity and capacity checks. Workers never hold the database operation lock
+during web research. There is no embedded model, URL-fetch endpoint or auto-send
+path. Native host allowlists remain operator-managed; the shipped example is
+kept consistent with the complete public tool schemas.
 
 ## Public intake is a separate action
 

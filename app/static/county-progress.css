@@ -1,0 +1,42 @@
+#county-progress-panel{margin-top:24px;padding:22px 24px;scroll-margin-top:16px}
+#county-progress-panel>summary{font-size:20px;font-weight:650}
+#county-progress-panel .help{margin:10px 0}
+#county-progress-controls{display:flex;flex-wrap:wrap;gap:14px;align-items:end;margin:18px 0}
+#county-progress-controls label{display:grid;gap:4px;font-size:13px;font-weight:600;min-width:135px;max-width:100%}
+#county-progress-controls select,#county-progress-controls input{width:100%}
+.county-progress-layout{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(330px,1fr);gap:18px;align-items:start}
+#county-progress-map{min-width:0;background:#f7f9fb;border:1px solid #dfe6ec;border-radius:10px;min-height:240px}
+#county-progress-map svg{width:100%;display:block;max-height:570px}
+.county-progress-list{max-height:510px;overflow:auto;border:1px solid #dfe6ec;border-radius:8px}
+.county-progress-list thead{position:sticky;top:0;background:white;z-index:1}
+.county-progress-list th,.county-progress-list td{padding:10px 12px}
+.county-progress-list td:first-child button{text-align:left;font-size:14px;padding:4px 7px;min-height:38px}
+.county-progress-list small{display:block;white-space:normal}
+.county-progress-list tr[data-selected=true]{background:#eaf1ff}
+.county-shape{cursor:pointer;--county-fill:#dfe5ec;outline:none}
+.county-shape path{fill:var(--county-fill);stroke:white;stroke-width:1;vector-effect:non-scaling-stroke;stroke-linejoin:round}
+.county-shape[data-matched=false]{opacity:.25}
+.county-shape:hover path,.county-shape:focus-visible path,.county-shape[data-selected=true] path{stroke:#173c86;stroke-width:2;filter:brightness(.96)}
+.county-shape[data-deadline=overdue] path{stroke:#b32b35;stroke-width:1.8}
+.county-shape[data-deadline=soon] path{stroke:#b47a0c;stroke-width:1.8}
+.county-badge{--county-fill:#dfe5ec;display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:650;color:#192b40;white-space:normal}
+.county-badge:before{content:'';background:var(--county-fill);height:12px;width:12px;border:1px solid #52637855;border-radius:3px;flex-shrink:0}
+.county-shape[data-status=routing],.county-badge[data-status=routing]{--county-fill:#e8b380}
+.county-shape[data-status=draft],.county-badge[data-status=draft]{--county-fill:#abc5f0}
+.county-shape[data-status=waiting],.county-badge[data-status=waiting]{--county-fill:#f0cb57}
+.county-shape[data-status=acknowledged],.county-badge[data-status=acknowledged]{--county-fill:#e4d798}
+.county-shape[data-status=new],.county-badge[data-status=new]{--county-fill:#67c894}
+.county-shape[data-status=partial],.county-badge[data-status=partial]{--county-fill:#c2a2df}
+.county-shape[data-status=received],.county-badge[data-status=received]{--county-fill:#6fb6d8}
+.county-shape[data-status=attention],.county-badge[data-status=attention]{--county-fill:#eda18e}
+.county-shape[data-status=uncertain],.county-badge[data-status=uncertain]{--county-fill:#db8196}
+.county-shape[data-status=closed],.county-badge[data-status=closed]{--county-fill:#a5adb7}
+#county-progress-legend{display:flex;flex-wrap:wrap;gap:8px 18px;margin:16px 0}
+#county-progress-source,#county-progress-freshness,#county-progress-showing{font-size:12px;color:#53657a;margin:10px 0}
+#county-progress-detail{border-top:1px solid #dfe6ec;margin-top:18px;padding-top:16px;scroll-margin-top:18px}
+.county-request-card{border:1px solid #dfe6ec;border-radius:8px;padding:15px;margin-top:12px;overflow-wrap:anywhere}
+.county-request-card h4{margin:0 0 8px;font-size:15px}.county-request-card p{font-size:14px;margin:7px 0}.county-request-card small{display:block;color:#53657a}.county-request-card button{margin-top:12px}
+.county-timing{color:#915c12}
+#show-county-progress{margin:15px 24px 0;width:calc(100% - 48px)}
+@media(max-width:1100px){.county-progress-layout{grid-template-columns:1fr}.county-progress-list{max-height:370px}}
+@media(max-width:560px){#county-progress-panel{padding:17px 12px}#county-progress-controls{display:grid;grid-template-columns:1fr 1fr}#county-progress-controls label{min-width:0}.county-progress-list th,.county-progress-list td{padding:7px 6px}.county-progress-list table{font-size:12px}#county-progress-map{min-height:180px}.county-badge{font-size:11px}}

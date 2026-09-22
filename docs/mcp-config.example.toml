@@ -44,6 +44,11 @@ enabled_tools = [
   'desk_export_case', 'desk_get_equipment_campaign',
   'desk_create_equipment_request', 'desk_save_equipment_state',
   'desk_save_equipment_progress',
+  'desk_get_deadlines', 'desk_save_deadline_tracking',
+  'desk_list_counties', 'desk_find_contacts', 'desk_get_contact',
+  'desk_save_contact', 'desk_create_contact_batch', 'desk_list_contact_batches',
+  'desk_get_contact_batch', 'desk_claim_contact_tasks', 'desk_complete_contact_task',
+  'desk_release_contact_task', 'desk_update_contact_batch',
 ]
 
 [mcp_servers.records_desk.tools.desk_send_email]
