@@ -62,6 +62,20 @@ evidence are documentation-only; the final publication candidate is checked
 again before pushing. GitHub's Windows workflow independently runs the suite
 for the pull request and merged `main`.
 
+The actual public `main` ZIP at merge `a9c4f83` was also downloaded and checked
+against all 163 committed files using the repository's declared line-ending
+rules (Windows launchers use CRLF; catalog identity bytes are preserved).
+Locked dependency installation, diagnostics and all 285 self-tests passed with
+no `.git` checkout and no Git executable on the test process's PATH.
+
+The initial pull-request Windows run passed. A subsequent hosted runner hit the
+synthetic harness's 30-second timeout during its first PowerShell 5.1 launch,
+before reporting a parsing result. The follow-up batches the invalid-input
+table in one real PowerShell process, retains every assertion, adds PowerShell
+checks for malformed/oversized JSON, and allows a bounded 60 seconds per test
+process. Runtime, mailbox and installer policy are unchanged. See
+[the recorded CI failure](https://github.com/Camreyn/CivicRelay/actions/runs/35954418835).
+
 ## Verification limits
 
 - This checks source completeness, locked libraries, Windows runtime probes,
