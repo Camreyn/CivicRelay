@@ -129,6 +129,7 @@ class GeneralReviewTests(TestCase):
         case = {'id': 'request-a', 'general_campaign_id': campaign['id'],
                 'target': target, 'revision': 2, 'stage': 'closed',
                 'latest_send_state': 'accepted', 'drafts': ['draft-a'],
+                'last_sent_at': '2026-09-17T12:00:00+00:00',
                 'tracking': {'response_stage': 'closed'}}
         accepted = {
             'state': 'accepted', 'message_id': '<draft-a@example.test>',

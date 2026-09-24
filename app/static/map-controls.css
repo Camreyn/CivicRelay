@@ -1,0 +1,40 @@
+/* Shared, local-only state/county map interaction and disclosures. */
+.map-toolbar{display:flex;flex-wrap:wrap;align-items:flex-start;gap:8px 16px;padding:16px 0 10px}
+.map-panel>.map-toolbar{margin:0 24px}
+.map-navigation,.map-pan{display:flex;flex-wrap:wrap;align-items:center;gap:5px}
+.map-toolbar button{font-size:13px;min-height:40px;padding:6px 10px}
+.map-toolbar button:disabled{cursor:default}
+.map-navigation button:first-child,.map-navigation button:nth-child(2),.map-pan button{min-width:40px;font-size:19px;line-height:1}
+.map-zoom{font-size:12px;font-weight:650;font-variant-numeric:tabular-nums;min-width:47px;text-align:center}
+.map-layers{margin:0;min-width:108px;border:1px solid #cbd5df;border-radius:7px;background:#f7f9fc}
+.map-layers summary{padding:8px 12px;min-height:40px;font-size:13px}
+.map-layer-choices{display:grid;gap:8px;padding:4px 12px 12px;font-size:13px}
+.map-layer-choices label{display:flex;gap:8px;align-items:center;cursor:pointer}
+.map-layer-choices input{width:17px;height:17px;margin:0;accent-color:#2258cb}
+.map-controls-help{font-size:12px;color:#53657a;margin:8px 0 12px}
+.map-panel>.map-controls-help{margin:8px 24px 12px}
+.map-legend-panel{margin:12px 0;border-block:1px solid #e0e7ee;padding:8px 0}
+.map-panel>.map-legend-panel{margin:10px 24px 16px}
+.map-legend-panel>summary{font-size:13px}
+.map-legend-panel #legend,.map-legend-panel #county-progress-legend{display:grid;gap:12px;padding:12px 0 4px;margin:0;font-size:12px;color:#42576c}
+.map-status-legend,.map-timing-legend{display:flex;flex-wrap:wrap;gap:8px 18px}
+.map-status-legend>span,.map-timing-legend>span,.map-legend-panel #legend>span,.map-legend-panel #county-progress-legend>span{display:inline-flex;align-items:center;gap:7px}
+.map-timing-legend>p{flex-basis:100%}
+.map-outline-key{width:17px;height:12px;border:2px solid #a32e24;border-radius:3px;display:inline-block;flex-shrink:0}
+.map-outline-key.soon{border-color:#9a6700}
+.map-outline-key.selected{border:2px dashed #164dcc}
+.interactive-map{overflow:hidden;isolation:isolate;position:relative}
+.interactive-map svg{touch-action:none;user-select:none;cursor:grab;outline-offset:-3px}
+.interactive-map.is-panning svg,.interactive-map.is-panning .state,.interactive-map.is-panning .county-shape{cursor:grabbing}
+.interactive-map .state>path:not(.map-selection){stroke:#a5b3c2;stroke-width:.7;vector-effect:non-scaling-stroke}
+.interactive-map .county-shape>path:not(.map-selection){stroke:#fff;stroke-width:1;vector-effect:non-scaling-stroke}
+.interactive-map[data-status-layer=off] .state>path:not(.map-selection),.interactive-map[data-status-layer=off] .county-shape>path:not(.map-selection){fill:#dce3e9}
+.interactive-map[data-timing-layer=on] [data-deadline=overdue]>path:not(.map-selection){stroke:#a32e24;stroke-width:2.6;vector-effect:non-scaling-stroke}
+.interactive-map[data-timing-layer=on] [data-deadline=soon]>path:not(.map-selection){stroke:#9a6700;stroke-width:2;vector-effect:non-scaling-stroke}
+.interactive-map .map-selection{display:none;fill:none!important;stroke:#164dcc!important;stroke-width:2!important;stroke-dasharray:5 3;vector-effect:non-scaling-stroke;pointer-events:none;filter:none!important}
+.interactive-map [aria-pressed=true]>.map-selection,.interactive-map [role=button]:focus-visible>.map-selection{display:block}
+.interactive-map .map-label{pointer-events:none}
+.interactive-map[data-labels-layer=off] .map-label{display:none}
+.interactive-map .county-label{fill:#192b40;paint-order:stroke;stroke:#fffe;stroke-width:2;stroke-linejoin:round;font-weight:600}
+#county-progress-map-column{min-width:0}
+@media(max-width:560px){.map-panel>.map-toolbar{margin:0 16px}.map-toolbar{gap:8px;padding-top:10px}.map-panel>.map-controls-help{margin-inline:16px}.map-panel>.map-legend-panel{margin-inline:16px}.map-toolbar button{min-height:44px}.map-layers summary{min-height:44px}}

@@ -2,7 +2,7 @@
 import path from 'node:path';
 const roots=new Set(['.gitignore','.gitattributes','AGENTS.md','README.md','LICENSE','NOTICE','SECURITY.md',
   'package.json','package-lock.json','runtime-config.mjs','Open CivicRelay.cmd','Open Records Desk.cmd',
-  'Open-Records-Desk.ps1','Open-Proton-Setup.ps1']);
+  'Open-Records-Desk.ps1','Open-Proton-Setup.ps1','Install CivicRelay.cmd','Check CivicRelay.cmd','Open Proton Setup.cmd']);
 const deny=/(^|\/)(\.private|\.local|\.codex|node_modules|collections|exports|attachments|quarantine|__pycache__)(\/|$)|\.(dpapi|sqlite\w*|db|eml|mbox|pst|ost|pem|key|p12|pfx|log|png|zip|csv|pdf)$/i;
 const allowed=/^(app|connector|scripts)\/[\w./-]+\.(py|mjs|js|html|css|json|ps1)$|^docs\/[\w./-]+\.(md|toml)$|^data\/(catalog\.json|snapshot-provenance\.json|records-response\.yml)$|^\.github\/workflows\/ci\.yml$/;
 export function assertPublicPath(file) {

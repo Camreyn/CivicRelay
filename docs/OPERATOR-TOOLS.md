@@ -58,6 +58,41 @@ approval before sending or fees; research/draft creation alone does not authoriz
 
 ## Working in the visible page
 
+Both maps expose local-only **Layers**, **Legend**, zoom, fit-selection and pan
+controls, including keyboard and touch navigation. They do not edit cases or
+fetch mail. `records_read_overview.map_view` and
+`records_read_overview.county_view.map_view` report scope, zoom, visible layers and
+legend expansion; the latter is present once county status has loaded. A hidden
+color/outline is not an absent request/deadline: use the saved status tools for
+facts. Display preferences persist in the browser, while zoom stays page-local.
+See [map controls](USER-GUIDE.md#map-controls). No new backend tool or permission
+is introduced, and map interaction preserves unsaved forms.
+
+State selection automatically displays any available guide in a **default-collapsed**
+panel; it does not force a popup or fetch official sources. Native assistants should
+use `desk_get_state_guide` before state-specific work. `desk_get_workflow` describes
+this behavior, and `records_read_overview` reports the visible guide state.
+
+For MA city/town contacts, use `desk_get_municipal_contacts` with `state: "MA"`,
+an optional municipality-name `query` and pagination. Keep these separate from
+county research. Source URLs, check/collection dates, missing emails and unverified
+designated-RAO status are returned and displayed. `desk_get_sources` reads saved
+metadata; `desk_refresh_source` explicitly re-scrapes one registered source.
+Inspect the nested result's `ok`, `code` and diagnostics before claiming success.
+If blocked, `desk_import_source` accepts complete reviewed text from that exact
+source, with its actual check date, and labels it as an import. No automatic
+retry, rerouting, email, fee or publication is implied. These five tools are
+native-only plus dashboard controls, keeping the WebMCP registration at 64.
+See [Settings and source controls](SETTINGS.md) for the workflow and limits.
+
+For MA electronic/equipment replies, use the [MA response-review helper](MASSACHUSETTS.md).
+`desk_get_ma_follow_up`, `desk_save_ma_review` and `desk_preview_ma_follow_up`
+separate per-category answers, internal forwarding, and municipal routing leads.
+They preserve original request clocks and retain per-response appeal planning
+watches without asserting legal sufficiency, closing cases or sending anything.
+These three additions are native-only tools with dashboard buttons; the existing
+WebMCP page surface remains 53 backend operations plus 11 workspace helpers.
+
 For county request visibility, use [county status](COUNTY-STATUS.md).
 `desk_list_counties` with `state` and `include_requests: true` returns each county's
 saved request status, exact case IDs, reply counts and timing. Optional `workflow`

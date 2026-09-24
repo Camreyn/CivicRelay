@@ -1,0 +1,55 @@
+// UI -> real HTTP handler -> encrypted disposable store -> persisted review/preview.
+import assert from 'node:assert/strict';
+import {spawn} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
+import {tmpdir} from 'node:os';
+import path from 'node:path';
+import {chromium} from 'playwright';
+import {pythonExecutable} from '../runtime-config.mjs';
+
+const fixture=spawn(pythonExecutable(),['-E','-s','-S',fileURLToPath(new URL('./ma_browser_fixture.py',import.meta.url))],{cwd:fileURLToPath(new URL('.',import.meta.url)),windowsHide:true,stdio:['ignore','pipe','pipe']});
+let browser,stderr='';fixture.stderr.on('data',c=>stderr+=c.toString());
+try{
+ const ready=await new Promise((resolve,reject)=>{let output='';const timer=setTimeout(()=>reject(Error('Fixture timeout: '+stderr)),20000);fixture.stdout.on('data',c=>{output+=c;if(output.includes('\n')){clearTimeout(timer);resolve(JSON.parse(output.split('\n')[0]));}});fixture.on('error',reject);fixture.on('exit',code=>{clearTimeout(timer);reject(Error('Fixture exit '+code+': '+stderr));});});
+ assert.equal(ready.synthetic,true);const origin=`http://127.0.0.1:${ready.port}`;
+ browser=await chromium.launch({headless:true});const page=await browser.newPage({viewport:{width:1440,height:1100}});
+ const errors=[],external=[],operations=[];
+ page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error'&&!m.text().includes('400 (Bad Request)'))errors.push(m.text());});
+ await page.route('**/*',route=>{if(!route.request().url().startsWith(origin+'/')){external.push(route.request().url());return route.abort();}return route.continue();});
+ page.on('request',r=>{if(r.url().endsWith('/api/operation'))operations.push(r.postDataJSON().tool);});
+ const api=async(tool,args={})=>{const r=await(await page.request.post(origin+'/api/operation',{headers:{Origin:origin,'X-Records-Desk':'1'},data:{tool,arguments:args}})).json();if(!r.ok)throw Error(r.error);return r.result;};
+ const operation=async(name,action)=>{const pending=page.waitForResponse(r=>r.url().endsWith('/api/operation')&&r.request().postDataJSON()?.tool===name);await action();const r=await(await pending).json();assert.equal(r.ok,true,r.error);return r.result;};
+ const openEquipment=async()=>{await page.locator('#campaign-mode').selectOption('equipment');await page.locator('#state-select').selectOption('MA');await page.locator('#cases').getByRole('button',{name:'Open request',exact:true}).first().click();await page.locator('#ma-follow-up').waitFor();await page.locator('#ma-follow-up > summary').click();};
+ await page.goto(origin);await page.getByText('Private records workspace ready.',{exact:false}).waitFor();
+ assert.equal(await page.locator('#map .state').count(),51);
+ await openEquipment();
+ assert.equal(await page.locator('[data-ma-status]').count(),4);
+ assert.match(await page.locator('#ma-follow-up').innerText(),/county is not a substitute/);
+ await page.locator('#ma-response_kind').selectOption('local_referral');
+ await page.locator('#ma-summary').fill('Synthetic city/town routing suggestion. No records supplied.');
+ await page.locator('#ma-referral_level').selectOption('municipality');await page.locator('#ma-referral_target').fill('Unspecified cities and towns');
+ await page.locator('#ma-referral_status').selectOption('suggested_routing');await page.locator('#ma-referral_note').fill('Synthetic note gives no verified municipal filing custodian.');
+ await page.locator('#ma-response_date').fill('2026-09-17');await page.locator('#ma-date_basis').fill('Synthetic dated response; applicability needs review.');await page.locator('#ma-follow_up_on').fill('2026-09-24');
+ await page.locator('#campaign-mode').selectOption('records');assert.match(await page.locator('#notice').innerText(),/Save or discard the Massachusetts/);
+ assert.equal(await page.locator('#ma-summary').inputValue(),'Synthetic city/town routing suggestion. No records supplied.');
+ await operation('desk_save_ma_review',()=>page.getByRole('button',{name:'Save MA response review',exact:true}).click());
+ await page.getByText('MA review saved privately.',{exact:false}).waitFor();
+ assert.match(await page.locator('#ma-history').innerText(),/2026-12-16/);
+ const saved=await api('desk_get_case',{case_id:ready.ids.equipment});assert.equal(saved.case.stage,'draft');assert.equal(saved.messages[0].read_in_desk,false);assert.equal(saved.case.ma_response_reviews.length,1);
+ await operation('desk_preview_ma_follow_up',()=>page.getByRole('button',{name:'Preview MA follow-up text',exact:true}).click());
+ await page.getByRole('button',{name:'Use MA preview in composer'}).waitFor();
+ assert.match(await page.locator('#ma-preview').innerText(),/No fees are authorized/);
+ const screenshot=path.join(tmpdir(),'civicrelay-ma-synthetic.png');await page.locator('#ma-follow-up').screenshot({path:screenshot});
+ await page.getByRole('button',{name:'Use MA preview in composer'}).click();
+ assert.match(await page.locator('#body').inputValue(),/clarification of that request, not a replacement/);
+ assert.equal(await page.locator('#routing-verified').isChecked(),false);
+ assert.match(await page.locator('#reply-context').innerText(),/INBOX:1:1/);
+ assert.equal((await api('desk_get_case',{case_id:ready.ids.equipment})).case.body,'Synthetic request only. No live mailbox.');
+ await page.reload();await page.getByText('Private records workspace ready.',{exact:false}).waitFor();await openEquipment();
+ assert.match(await page.locator('#ma-summary').inputValue(),/Synthetic city\/town/);
+ await page.locator('#campaign-mode').selectOption('records');await operation('desk_get_case',()=>page.locator('#existing-queue tr').filter({hasText:'Massachusetts'}).getByRole('button',{name:'Open',exact:true}).click());await page.locator('#ma-follow-up > summary').click();
+ assert.equal(await page.locator('[data-ma-status]').count(),6);assert.equal(await page.locator('#ma-summary').inputValue(),'');
+ assert.equal(operations.filter(t=>/sync|send|publish|export|prepare_email/.test(t)).length,0);
+ assert.deepEqual(errors,[]);assert.deepEqual(external,[]);
+ console.log(JSON.stringify({ok:true,synthetic:true,stories:['distinct-ma-workflows','municipal-not-county-routing','dirty-review-preserved','save-reload-and-appeal-watch','preview-to-threaded-unsaved-composer'],screenshot,external_actions:0}));
+}finally{await browser?.close();fixture.kill();}

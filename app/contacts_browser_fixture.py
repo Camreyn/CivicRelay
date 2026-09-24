@@ -23,7 +23,7 @@ if __name__ == '__main__':
                    'contacts':[{'department':'Synthetic FOIA office','email':'records@example.test','route_type':'designated_custodian','source_url':'https://example.gov/foia'}],
                    'sources':[{'url':'https://example.gov/foia','title':'Synthetic official page','publisher':'Synthetic County','checked_on':day,'official':True,'evidence':'Synthetic published role and address.'}]}
             service.dispatch('desk_save_contact',{'county_id':cid,'role':'public_records','revision':0,'operation_key':'fixture-'+cid,'result':value})
-        allowed=set(contacts.ARGUMENTS)|{'desk_list_cases','desk_get_case','desk_get_deadlines','desk_get_workflow'}
+        allowed=set(contacts.ARGUMENTS)|{'desk_get_state_guide','desk_list_cases','desk_get_case','desk_get_deadlines','desk_get_workflow'}
         def invoke(name,args):
             if name not in allowed:
                 return {'ok':False,'error':'Synthetic fixture forbids mail, send, publication, fees and settings changes.'}

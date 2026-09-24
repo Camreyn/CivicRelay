@@ -1,17 +1,25 @@
 # CivicRelay setup
 
-Start from a clone of [Camreyn/CivicRelay](https://github.com/Camreyn/CivicRelay).
+For the easiest new installation, extract the complete source ZIP and
+double-click **Install CivicRelay.cmd**. It can acquire the missing runtimes and
+optional applications, install libraries, run tests, and save the runtime paths.
+Start with the [guided installation instructions](INSTALL.md); the sections
+below cover manual setup, account enrollment, and assistant configuration.
+
+A clone of [Camreyn/CivicRelay](https://github.com/Camreyn/CivicRelay) also works.
 An existing installation may still use the folder name `CivicRecordsDesk`;
 the checkout's name is not significant. Do not rename its private storage.
 
 ## Requirements
 
-- 64-bit Windows 10 or later, with the same signed-in user profile used for
-  existing encrypted data. Windows 11 is recommended.
+- 64-bit Intel/AMD Windows, with the same signed-in user profile used for
+  existing encrypted data. Windows 11 is recommended; see the
+  [installation guide](INSTALL.md) for Proton's current OS requirements.
 - Python 3.13, 64-bit, with Tkinter and `pythonw.exe`. Default: `C:\Python313\python.exe`.
 - Node.js 22 or later. Default for Python-launched work:
   `C:\Program Files\nodejs\node.exe`.
-- Proton Mail Bridge already working locally. The connector supports pinned
+- Proton Mail Bridge only for live mail; local templates and tracking work
+  without it. The connector supports pinned
   STARTTLS on loopback IMAP/SMTP only, not a remotely hosted mail server.
   Live use requires a paid plan including Proton Mail; see
   [Proton's Bridge requirements](https://proton.me/mail/bridge).
@@ -59,6 +67,13 @@ declared required fields; they are not silently added to templates or exports.
 
 ## Runtime paths
 
+The guided installer saves non-secret paths in ignored
+`.local/runtime-paths.json`. The dashboard/enrollment launchers, Node entry
+points, and assistant configuration generator use them automatically, including
+after a reboot. Explicit process environment settings take precedence, followed
+by this local file, then the legacy default locations. No `.env` file is loaded.
+Normal launches do not need the manual commands below.
+
 Trusted launch configuration may set absolute executable paths:
 
 ```powershell
@@ -83,7 +98,8 @@ never stop all Python or Node processes.
 1. Use a dedicated mailbox or Bridge split-address mode that exposes only the
    intended address. Isolation is user-attested, not independently
    guaranteed by the connector.
-2. Run `Open-Proton-Setup.ps1` in an interactive Windows session.
+2. Double-click **Open Proton Setup.cmd** (or run `Open-Proton-Setup.ps1`) in an
+   interactive Windows session.
 3. Enter the dedicated Bridge username, your sender display name, its generated
    Bridge password, and the local ports shown by Bridge. Do not use the Proton
    account password. Defaults are IMAP 1143 and SMTP 1025; use the actual values
@@ -111,7 +127,8 @@ policy. No administrator privileges are required by this application.
 
 ## Codex registration
 
-Run the configuration generator from this project:
+Select the optional Codex configuration step in the guided installer, or run
+the configuration generator from this project:
 
 ```powershell
 node scripts/configure-codex.mjs
@@ -120,7 +137,7 @@ node scripts/configure-codex.mjs
 It generates **only** this folder's ignored `.codex/config.toml`, using absolute
 paths for this checkout. It refuses to overwrite an existing configuration. The
 reviewable template is [mcp-config.example.toml](mcp-config.example.toml).
-The current starter template enables all **53 records tools and 8 mail tools**,
+The current starter template enables all **61 records tools and 8 mail tools**,
 including workspace settings, reusable templates, campaigns, equipment tracking,
 publication previews, private exports, county contact/progress tools and
 source-linked deadline tracking. The tool allowlists are checked against the
@@ -150,13 +167,15 @@ client's account, permissions and availability are separate.
 ### Upgrading an existing assistant configuration
 
 The original 0.6.0 configuration template enabled only 20 records tools. Its
-records server now exposes 53 tools, but an old host `enabled_tools` allowlist
+records server now exposes 61 tools, but an old host `enabled_tools` allowlist
 hides later additions such as workspace, template, campaign, destination,
-equipment, deadline and county-contact tools. A working
+equipment, deadline, county-contact, MA review and source/guide tools. A working
 dashboard or successful server restart does not correct an old allowlist.
 
-1. Update to 0.6.1 or later, which includes the corrected
-   [configuration template](mcp-config.example.toml). Do not re-enroll mail.
+1. Update to the [current source](INSTALL.md#three-steps), which includes the
+   complete current [configuration template](mcp-config.example.toml).
+   The older v0.6.1 release fixed the original omissions but predates the latest
+   tools described here. Do not re-enroll mail.
 2. Review the configuration your assistant actually uses. Normally this is
    `.codex/config.toml` in this checkout; a migrated installation may still
    register CivicRelay from its original parent project. Do not create duplicate

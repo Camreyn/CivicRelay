@@ -10,6 +10,14 @@ name in the list. Its request cards open the existing correspondence workspace
 with that request's saved replies and attachments. Multiple requests for a county
 remain separate. Small county equivalents are always accessible in the list.
 
+Use **Layers** for status colors, timing outlines and optional county names;
+expand/collapse **Legend** to read the visible layers. **Fit county** zooms to
+the selected county; **Fit map** restores the whole state. Zoom buttons, directional
+pan buttons, dragging, modifier-wheel zoom, touch pinch and keyboard controls work
+on both maps. See [map controls](USER-GUIDE.md#map-controls). Filters still dim
+nonmatching counties, even with status colors hidden. Changing the state resets
+the county extent; refreshing saved status or filtering preserves it.
+
 Every county/equivalent in the selected state's directory is listed, including
 those without a request. The count is an inventory denominator, **not** an
 assertion that all those jurisdictions have been selected for outreach. A saved

@@ -5,28 +5,35 @@ import {createGeneralWorkspace} from '/general-workspace.js';
 import {createDeadlineView} from '/deadlines.js';
 import {createContactView} from '/contacts.js';
 import {createCountyProgress} from '/county-progress.js';
+import {createMapControls} from '/map-controls.mjs';
+import {createStateGuides} from '/state-guides.js';
+import {createSettings} from '/settings.js';
 const $=id=>document.getElementById(id);
 const labels={none:'No prepared request',routing:'Routing needed',draft:'Draft',waiting:'Awaiting reply',new:'New reply',attention:'Action needed',ready:'Ready for review',submitted:'Submitted',closed:'Closed'};
 let data,geometry,selected='IN',selectedCase=null,mode='records',showGeneralMap=false;
 const recordCases=()=>data.catalog.cases.filter(c=>mode==='general'?!!c.general_campaign_id:!c.campaign_id);
 const mapLabel=s=>mode==='equipment'?(campaignLabels[s]||s):(labels[s]||s);
 function el(tag,text,cls){const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;}
+const nationalMap=createMapControls({host:$('map'),legend:$('legend'),id:'national-map',label:'National request map',selectionName:'state'});
 function badge(status){const n=el('span',undefined,'badge');n.append(el('i',undefined,`dot ${status}`),el('span',labels[status]));return n;}
 function status(c){return c.status || (c.recipient?'draft':'routing');}
 function aggregate(code){if(mode==='equipment')return data.equipment_campaign?.states.find(s=>s.state===code)?.status||'not_started';const all=recordCases().filter(c=>c.state===code).map(status);return ['new','attention','routing','ready','waiting','draft','submitted','closed'].find(s=>all.includes(s))||'none';}
 function timingForState(code){const cases=data.catalog.cases.filter(c=>c.state===code&&(mode==='equipment'?c.campaign_id===data.equipment_campaign?.id:recordCases().includes(c)));const states=cases.map(c=>c.deadline?.status);return states.includes('overdue')?'overdue':states.some(s=>['due_today','due_soon'].includes(s))?'soon':'';}
 function notice(text,error=false){$('notice').textContent=text;$('notice').className=error?'error':'';}
 async function api(path,body){const r=await fetch(path,body===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json','X-Records-Desk':'1'},body:JSON.stringify(body)});const j=await r.json();if(!r.ok||j.ok===false){const e=Error(j.error||'The operation could not be completed.');e.sendNotStarted=j.send_not_started===true;throw e;}return j;}
-function selectState(code){selected=code;$('state-select').value=code;renderMap();renderState();countyView.contextChanged();}
+function selectState(code){selected=code;$('state-select').value=code;renderMap();renderState();countyView.contextChanged();stateGuides.show(code);}
 function renderMap(){
+ const focused=$('map').contains(document.activeElement)?document.activeElement.dataset.state||'canvas':null;
  const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 870 560');
  for(const state of geometry.states){const g=document.createElementNS(ns,'g');g.setAttribute('class',`state ${selected===state.code?'selected':''}`);g.dataset.status=aggregate(state.code);g.dataset.state=state.code;g.dataset.deadline=timingForState(state.code);const timing=g.dataset.deadline==='overdue'?' · Past timing date; verify evidence':g.dataset.deadline==='soon'?' · Timing checkpoint due soon':'';g.setAttribute('tabindex','0');g.setAttribute('role','button');g.setAttribute('aria-label',`${state.name}: ${mapLabel(aggregate(state.code))}${timing}`);g.setAttribute('aria-pressed',String(selected===state.code));
  const title=document.createElementNS(ns,'title');title.textContent=`${state.name} · ${mapLabel(aggregate(state.code))}${timing}`;g.append(title);
  const path=document.createElementNS(ns,'path');path.setAttribute('d',state.path);g.append(path);
- if(state.callout){const line=document.createElementNS(ns,'line');['x1','y1','x2','y2'].forEach((k,i)=>line.setAttribute(k,[...state.anchor,state.x-14,state.y-4][i]));g.append(line);}
- const text=document.createElementNS(ns,'text');text.setAttribute('x',state.x);text.setAttribute('y',state.y);text.setAttribute('text-anchor','middle');text.textContent=state.code;g.append(text);
+ if(state.callout){const line=document.createElementNS(ns,'line');line.setAttribute('class','map-label');['x1','y1','x2','y2'].forEach((k,i)=>line.setAttribute(k,[...state.anchor,state.x-14,state.y-4][i]));g.append(line);}
+ const text=document.createElementNS(ns,'text');text.setAttribute('class','map-label');text.setAttribute('x',state.x);text.setAttribute('y',state.y);text.setAttribute('text-anchor','middle');text.textContent=state.code;g.append(text);
  g.addEventListener('click',()=>selectState(state.code));g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();selectState(state.code);}});svg.append(g);}
  $('map').replaceChildren(svg);
+ nationalMap.mount(svg,{scope:'US',selected:svg.querySelector('.selected')});
+ if(focused)(Array.from(svg.querySelectorAll('.state')).find(g=>g.dataset.state===focused)||svg).focus({preventScroll:true});
 }
 function renderState(){if(mode==='equipment'&&data.equipment_campaign){campaign.renderState(selected);return;}const s=data.catalog.states.find(s=>s.code===selected);if(!s)return;$('state-name').textContent=s.name;$('state-code').textContent=s.code;const box=$('cases');box.replaceChildren();box.className='';const cases=recordCases().filter(c=>c.state===selected);if(!cases.length){box.append(el('p','No saved request in this workflow for this state. Federal and other targets remain in the campaign list.', 'empty'));return;}for(const c of cases){const card=el('div',undefined,'case-card');card.append(badge(status(c)),el('h3',c.family_label),el('p',`${c.request_ids.length} tracking ${c.request_ids.length===1?'reference':'references'}${c.year?' · '+c.year:''}`));const b=el('button','Open request');b.onclick=()=>openCase(c.id).catch(()=>{});card.append(b);box.append(card);}}
 function renderQueue(){
@@ -42,6 +49,9 @@ function renderQueue(){
 }
 function renderStats(){const cases=recordCases(),counts=data.equipment_campaign?.counts;const stats=mode==='equipment'&&counts?[['States + DC tracked',counts.jurisdictions_tracked],['Started',counts.states_started],['Not started',counts.states_not_started],['Requests with send receipt',counts.requests_with_send_confirmation]]:[['Prepared requests',cases.length],['Awaiting reply',cases.filter(c=>status(c)==='waiting').length],['New replies',cases.filter(c=>status(c)==='new').length],mode==='general'?['Records received',cases.filter(c=>c.tracking?.coverage==='received').length]:['Ready for review',cases.filter(c=>status(c)==='ready').length]];$('stats').replaceChildren(...stats.map(([label,value])=>{const n=el('div',undefined,'stat');n.append(el('strong',String(value)),el('span',label));return n;}));$('state-count').textContent=mode==='equipment'?`${counts?.states_started||0} started · ${counts?.states_not_started??51} not started`:`${new Set(cases.map(c=>c.state).filter(Boolean)).size} states with requests`;}
 const op=async(tool,args={})=>(await api('/api/operation',{tool,arguments:args})).result;
+const settings=createSettings({host:$('settings-host'),api:op,onSourcesChanged:()=>stateGuides.refreshContacts()});
+const stateGuides=createStateGuides({host:$('state-guides-host'),op,openSettings:()=>settings.open()});
+$('open-settings').onclick=()=>settings.open();
 async function refresh(){data=await api('/api/bootstrap');if($('workspace-brand'))$('workspace-brand').textContent=(data.workspace?.organization||data.workspace?.name||'CivicRelay')+' / PRIVATE WORKSPACE';renderStats();renderMap();renderState();renderQueue();campaign.renderQueue();workspace.renderInbox();deadlineView.render();await countyView.refresh();}
 const workspace=createWorkspace({$,el,op,notice,labels,badge,getData:()=>data,refresh,selectState});
 const campaign=createCampaignView({$,el,getData:()=>data,selectState,openCase});
@@ -53,8 +63,7 @@ async function changeMode(value){
  try{workspace.assertClean();deadlineView.assertClean();}catch(e){$('campaign-mode').value=mode;throw e;}
  const changed=mode!==value;mode=value;$('campaign-mode').value=mode;const isGeneral=mode==='general';
  $('existing-queue').hidden=mode==='equipment';$('campaign-panel').hidden=mode!=='equipment';$('general-workspace').hidden=!isGeneral;$('campaign-policy').hidden=mode!=='equipment';document.querySelector('.desk-grid').hidden=isGeneral&&!showGeneralMap;$('stats').hidden=false;if(changed)$('case-workspace').hidden=true;document.querySelector('.inbox-panel').hidden=false;
- const legend=mode==='equipment'?campaignLabels:labels;$('legend').replaceChildren(...Object.entries(legend).map(([k,v])=>{const n=el('span');n.append(el('i',undefined,`dot ${k}`),el('span',v));return n;}));
- $('legend').append(el('span','Outline: red = past timing date; amber = due soon. Current workflow only.'));
+ const legend=mode==='equipment'?campaignLabels:labels;nationalMap.setLegend(Object.entries(legend).map(([k,v])=>{const n=el('span');n.append(el('i',undefined,`dot ${k}`),el('span',v));return n;}));
  renderStats();renderMap();renderState();renderQueue();campaign.renderQueue();countyView.contextChanged();if(isGeneral)await general.load();
 }
 async function openCase(id){try{workspace.assertClean();deadlineView.assertClean();await workspace.openCase(id);selectedCase=id;const b=el('button','View deadline sources & timing','timing-case-button');b.onclick=()=>deadlineView.inspect(id).catch(e=>notice(e.message,true));$('case-workspace').prepend(b);}catch(e){notice(e.message,true);throw e;}}
@@ -63,9 +72,9 @@ async function registerTools(){
  const life=new AbortController();window.addEventListener('pagehide',()=>life.abort(),{once:true});
  const report=await registerPageTools(document.modelContext,{
   workspace,
-  overview:()=>({workflow:mode,equipment_campaign_counts:data.equipment_campaign?.counts,county_view:countyView.snapshot(),deadlines:data.deadlines,selected_state:selected,queue_filter:$('filter').value,cases:data.catalog.cases.map(c=>({id:c.id,state:c.state,status:c.status,revision:c.revision,unread_count:c.unread_count})),states:data.catalog.states.map(s=>({code:s.code,name:s.name,status:aggregate(s.code)})),unassigned_total:data.unassigned_total}),
+  overview:()=>({workflow:mode,map_view:nationalMap.snapshot(),state_guides:stateGuides.snapshot(),equipment_campaign_counts:data.equipment_campaign?.counts,county_view:countyView.snapshot(),deadlines:data.deadlines,selected_state:selected,queue_filter:$('filter').value,cases:data.catalog.cases.map(c=>({id:c.id,state:c.state,status:c.status,revision:c.revision,unread_count:c.unread_count})),states:data.catalog.states.map(s=>({code:s.code,name:s.name,status:aggregate(s.code)})),unassigned_total:data.unassigned_total}),
   openCase:async id=>{if(!data.catalog.cases.some(c=>c.id===id))throw Error('Choose a known case ID.');await openCase(id);return workspace.snapshot();},
-  selectState:code=>{if(!data.catalog.states.some(s=>s.code===code))throw Error('Choose a known state code.');selectState(code);return {selected_state:selected};},
+  selectState:async code=>{if(!data.catalog.states.some(s=>s.code===code))throw Error('Choose a known state code.');selectState(code);await stateGuides.show(code,{force:true});return {selected_state:selected,state_guides:stateGuides.snapshot()};},
   filterQueue:value=>{if(!Array.from($('filter').options).some(o=>o.value===value))throw Error('Choose an available queue filter.');$('filter').value=value;renderQueue();return {queue_filter:value};},
   backend:async(name,args,readOnly)=>{
    const result=await op(name,args);

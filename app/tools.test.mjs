@@ -8,8 +8,8 @@ import {Client} from '@modelcontextprotocol/client';
 import {StdioClientTransport} from '@modelcontextprotocol/client/stdio';
 import {TOOLS} from './tools.mjs';
 const directory=path.dirname(fileURLToPath(import.meta.url));
-test('53 narrow schemas have no credential, shell, path, host, or policy override',()=>{
- assert.equal(TOOLS.length,53);
+test('61 narrow schemas have no credential, shell, path, host, or policy override',()=>{
+ assert.equal(TOOLS.length,61);
  for(const t of TOOLS){assert.equal(t.schema.additionalProperties,false);for(const key of Object.keys(t.schema.properties))assert.doesNotMatch(key,/password|command|path|host|approve|confirm_send/);}
  for(const name of ['desk_send_email','desk_publish_intake']){const t=TOOLS.find(t=>t.name===name);assert.equal(t.readOnly,false);assert.ok(t.schema.required.includes('expected_digest'));assert.equal(Object.hasOwn(t.schema.properties,'confirmation'),false);}
 });
@@ -20,6 +20,10 @@ for(const negotiationMode of ['legacy','auto'])test(`actual MCP STDIO handshake 
  try{await client.connect(transport);const list=await client.listTools();assert.deepEqual(list.tools.map(t=>t.name),TOOLS.map(t=>t.name));
   const status=await client.callTool({name:'desk_status',arguments:{}});assert.equal(status.structuredContent.ok,true);assert.equal(status.structuredContent.result.connector.configured,false);
   assert.equal(status.structuredContent.result.requires_desktop_confirmation,false);
+  const guide=await client.callTool({name:'desk_get_state_guide',arguments:{state:'MA'}});assert.equal(guide.structuredContent.result.display.default_collapsed,true);assert.equal(guide.structuredContent.result.guides.length,2);
+  const sources=await client.callTool({name:'desk_get_sources',arguments:{}});assert.equal(sources.structuredContent.result.network_accessed,false);assert.equal(sources.structuredContent.result.sources[0].record_count,0);
+  const municipalities=await client.callTool({name:'desk_get_municipal_contacts',arguments:{state:'MA'}});assert.equal(municipalities.structuredContent.result.coverage.municipalities,351);assert.equal(municipalities.structuredContent.result.coverage.collected,0);
+  const ma=await client.callTool({name:'desk_get_ma_follow_up',arguments:{}});assert.equal(ma.structuredContent.ok,true);assert.equal(ma.structuredContent.result.network_accessed,false);assert.deepEqual(ma.structuredContent.result.cases,[]);
   const cases=await client.callTool({name:'desk_list_cases',arguments:{}});assert.equal(cases.structuredContent.result.cases.length,0,'fresh installs start blank');
   assert.equal(cases.structuredContent.result.unassigned_total,0);
   const deadlines=await client.callTool({name:'desk_get_deadlines',arguments:{}});assert.equal(deadlines.structuredContent.ok,true);assert.equal(deadlines.structuredContent.result.network_accessed,false);assert.deepEqual(deadlines.structuredContent.result.cases,[]);

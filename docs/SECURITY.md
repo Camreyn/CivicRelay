@@ -119,6 +119,22 @@ additional writes instead of deleting old evidence. Do not put credentials,
 private voter data or unnecessary personal information in source notes.
 See [research limitations](CONTACT-RESEARCH.md).
 
+## Registered public-source refresh
+
+The Settings collector accepts one reviewed source ID, never a caller-supplied
+URL, path or command. It performs a credential-free HTTPS GET to the fixed
+official directory with normal TLS validation, no cookies/proxies/redirects and
+bounded size/time. Source text is untrusted data, never executed or treated as
+permission. Blocking/partial/malformed pages preserve the previous contacts and
+produce sanitized diagnostics, not raw exceptions or headers. Importing reviewed
+text is an operator attestation with an actual source-check date, visibly
+distinct from a direct fetch; it cannot independently authenticate pasted text.
+
+Complete source snapshots and attempt history stay encrypted outside Git.
+Directory entries never verify designated RAOs or mutate mail, case routing,
+submission status, fees or deadlines. Settings cannot change credentials,
+assistant-host permissions, sending safeguards or TLS trust. See [Settings](SETTINGS.md).
+
 ## Backups and another PC
 
 The migration preserves the same user's live data in place. A Git clone is a

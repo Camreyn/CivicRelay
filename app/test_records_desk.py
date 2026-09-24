@@ -172,6 +172,31 @@ class DeskTests(unittest.TestCase):
         self.ready_case();m=mail(case=self.case_id,assignment='manual');m['references']='<ancestor@example.gov>';self.db.put('mail',m['id'],m)
         d=self.call('desk_prepare_email',case_id=self.case_id,reply_message_id=m['id'])['draft']
         self.assertEqual(d['in_reply_to'],m['message_id']);self.assertEqual(d['references'],['<ancestor@example.gov>',m['message_id']])
+    def test_consecutive_accepted_reply_without_sync_updates_waiting_status(self):
+        self.ready_case();first=self.call('desk_prepare_email',case_id=self.case_id)['draft'];wire=[]
+        smtp=SimpleNamespace(mail=lambda _: (250,b''),rcpt=lambda _:(250,b''),data=lambda b:(wire.append(b) or (250,b'')))
+        @contextmanager
+        def connection(_):yield smtp
+        with patch('bridge.smtp_connection',connection):
+            self.call('desk_send_email',case_id=self.case_id,draft_id=first['draft_id'],expected_digest=first['digest'])
+            m=mail(case=self.case_id,assignment='manual');self.db.put('mail',m['id'],m)
+            self.call('desk_mark_reviewed',message_id=m['id'])
+            c=self.service.case(self.case_id)
+            self.call('desk_save_case',case_id=c['id'],revision=c['revision'],recipient=c['recipient'],subject='Re: Synthetic request',
+                body='Synthetic clarification; no fees authorized.',routing_verified=True,routing_evidence=c['routing_evidence'],stage='ready',note=c['note'])
+            reply=self.call('desk_prepare_email',case_id=self.case_id,reply_message_id=m['id'])['draft']
+            # No sync occurs between preparing and sending the reply. Advance
+            # only the synthetic clock so the real send ledger remains tested.
+            with patch('connector.time.time',return_value=time.time()+61):
+                result=self.call('desk_send_email',case_id=self.case_id,draft_id=reply['draft_id'],expected_digest=reply['digest'])
+            c=self.service.case(self.case_id)
+            self.assertEqual(c['stage'],'waiting')
+            self.assertEqual(c['latest_send_draft_id'],reply['draft_id'])
+            self.assertEqual(c['last_sent_at'],result['receipt']['accepted_at'])
+            self.assertEqual(self.call('desk_get_case',case_id=c['id'])['case']['status'],'waiting')
+            with self.assertRaises(ConnectorError):
+                self.call('desk_send_email',case_id=c['id'],draft_id=reply['draft_id'],expected_digest=reply['digest'])
+        self.assertEqual(len(wire),2)
     def test_thread_does_not_guess_by_subject(self):
         m=mail();mailbox.reconcile_threads([m],[('<sent@proton.me>',self.case_id)])
         self.assertIsNone(m['case_id'])

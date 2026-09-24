@@ -29,6 +29,32 @@ drafts across 13 states; a state without a prepared request is still visible.
 Empty states mean “no prepared request in this snapshot,” not “no records exist.”
 Cloned custodian cases can increase the local request count.
 
+## Map controls
+
+Both the national and county maps have their own controls:
+
+- **Layers** switches request-status colors, timing outlines and place labels
+  independently. State labels start on; county labels start off to reduce clutter.
+  Hiding a layer does not change any request, timing date or list filter.
+- **Legend** expands/collapses the key. It follows the current workflow and visible
+  layers; hiding status colors explicitly labels the shapes as neutral.
+  Dashed blue outlines identify the selected or keyboard-focused place, separately
+  from red/amber timing outlines.
+- **+ / −** zoom between 100% and 1200%. **Fit map** restores the full extent;
+  **Fit state / Fit county** centers the current selection (choose a county first).
+- Drag to pan, use the four arrow buttons, or pinch on a touch screen. Ordinary
+  mouse-wheel scrolling scrolls the page; hold Ctrl (⌘ on Mac) to zoom the map.
+- Tab to the map or a place, then use arrow keys to pan, +/− to zoom, and 0/Home
+  to reset. Enter/Space selects a focused place; the state selector and county
+  list remain available without using map gestures.
+
+Layer and legend choices are remembered separately for each map in this browser.
+Only those display preferences are stored there, not correspondence or credentials.
+Zoom/pan survive status refreshes, filters and workflow changes within the page;
+changing the county view's state or reloading resets its extent. These controls
+preserve unsaved correspondence/timing text and never check the inbox or send mail.
+Maps use bundled local shapes; there are no online basemaps or new dependencies.
+
 ## Status meanings
 
 Use both the text label and map legend, not color alone. A state with multiple

@@ -38,7 +38,7 @@ if __name__=='__main__':
         mid='INBOX:1:1'
         service.db.put('mail',mid,{'id':mid,'uid_validity':1,'uid':1,'folder':'INBOX','case_id':ids['TX'],'synced_at':now.timestamp(),'read_in_desk':False,'body_loaded':False,'subject':'Synthetic availability notice','from':'records@example.test','date':'Synthetic date','message_id':'<notice@example.test>'})
         service.db.put('sync','INBOX',{'id':'INBOX','folder':'INBOX','at':now.timestamp()-90000})
-        allowed={'desk_list_cases','desk_get_case','desk_get_deadlines','desk_save_deadline_tracking','desk_get_equipment_campaign','desk_get_workflow'}
+        allowed={'desk_get_state_guide','desk_list_cases','desk_get_case','desk_get_deadlines','desk_save_deadline_tracking','desk_get_equipment_campaign','desk_get_workflow'}
         def invoke(name,args):
             if name not in allowed:return {'ok':False,'error':'Synthetic fixture forbids mail sync, sends, fees and external operations.'}
             return safe_dispatch(name,args,service)

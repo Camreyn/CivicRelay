@@ -12,25 +12,41 @@ requested by the operator or an authorized assistant. CivicRelay has no extra
 per-action approval dialogs. Preparing a draft does not send it, and there are
 no background sends or automatic retries. Assistant-host permissions are separate.
 
-Version 0.6.1 is a reusable local public-records manager, not a hosted service
+CivicRelay is a reusable local public-records manager, not a hosted service
 or a full/multi-account email client. Each Windows-user installation has one
 dedicated Proton Bridge mailbox. A fresh user can enroll their own dedicated
 address locally; existing CivicResultMaps installations retain their legacy
 identity and stores. No credentials or real correspondence are included here.
 
-The current source checkout also includes county request maps, county contact
-research and source-linked deadline tracking. These additions are not in the
-older 0.6.1 release archive; use the current source checkout for these features.
+The current source also includes the guided Windows installer, county request
+maps and contact research, map controls, source-linked deadline tracking,
+Massachusetts response reviews, state guides, and Settings/source refresh.
+These additions are not in the older v0.6.1 release archive. Use the
+[current main-branch source ZIP](https://github.com/Camreyn/CivicRelay/archive/refs/heads/main.zip)
+or a current clone for the features documented below.
 
 ## What it does
 
 - Shows 50 states plus DC, with request status and a per-case workspace.
+- Automatically shows available [state guides](docs/SETTINGS.md#state-guides)
+  for the selected state, **collapsed by default**. Includes existing timing
+  profiles and the MA routing/response guide; unavailable guides are not invented.
+- Adds searchable MA city/town election-office contacts with official sources,
+  check dates and explicit unverified-RAO status. [Settings](docs/SETTINGS.md)
+  provides source re-scraping, success/error details and reviewed-text import
+  when an official website blocks direct downloads. Collected contacts stay private.
 - Adds a [county request-status map and list](docs/COUNTY-STATUS.md): select a
   state, click **View county requests**, and open a county's own requests and
   replies. Counties without requests remain visible; state responses never
   count as responses from every county.
+- Provides [map controls](docs/USER-GUIDE.md#map-controls) on both maps: independent
+  status/timing/label layers, collapsible legends, zoom, fit-selection, drag/pinch
+  and keyboard/button panning. Display choices never modify requests or send mail.
 - Tracks verified custodians, saved correspondence, exact reply chains, and
   manually requested inbox checks.
+- Adds a [Massachusetts response-review helper](docs/MASSACHUSETTS.md) for
+  category-specific gaps, internal versus municipal referrals, sourced routing,
+  separate appeal planning watches and draft-only threaded follow-ups.
 - Prepares immutable email drafts and records accepted/uncertain send outcomes.
 - Retains returned attachments encrypted locally, with original-byte hashes and
   provenance; it does not automatically execute or publish those files.
@@ -79,24 +95,29 @@ to review the missing entries. Existing host permissions remain separate.
 
 ## New installation
 
-Requires Windows, Python 3.13 with Tkinter, Node.js 22 or later, and an already
-working Proton Mail Bridge account for live mail. Bridge requires a paid Proton
-plan that includes Mail ([Proton's requirements](https://proton.me/mail/bridge)).
-GitHub CLI is optional unless publishing
-reviewed intake issues. See [setup](docs/SETUP.md) for executable paths, credential
-enrollment, and assistant-tool registration.
+On a **64-bit Intel/AMD Windows PC** (Windows 11 recommended):
 
-```powershell
-git clone https://github.com/Camreyn/CivicRelay.git
-Set-Location CivicRelay
-# Select the actual installed runtimes; see setup for the supported versions.
-$env:CRM_PROTON_PYTHON = (Get-Command python.exe).Source
-$env:RECORDS_DESK_NODE = (Get-Command node.exe).Source
-npm.cmd ci --ignore-scripts
-npm.cmd test
-node scripts/configure-codex.mjs
-npm.cmd start
-```
+1. Download the [current source ZIP](https://github.com/Camreyn/CivicRelay/archive/refs/heads/main.zip)
+   and extract the **entire** archive into a permanent local folder, or clone
+   this repository. Git is not required for the ZIP option. Do not use the
+   older v0.6.1 release ZIP for these instructions.
+2. Double-click **Install CivicRelay.cmd** and review its setup choices.
+3. When setup finishes, double-click **Open CivicRelay.cmd**.
+
+The guided installer checks for Python 3.13 with Tkinter and Node.js 22+ with
+npm, uses WinGet to install missing prerequisites, installs the locked JavaScript
+libraries, runs synthetic self-tests, and remembers executable paths for later
+launches. Proton Mail Bridge, GitHub CLI and project-local Codex configuration
+are selectable options. Existing mail and assistant permission settings are
+preserved. **Check CivicRelay.cmd** runs read-only dependency diagnostics.
+
+See the [easy installation guide](docs/INSTALL.md) for downloads, manual fallback,
+re-running setup, and what still needs your sign-in, and the
+[fresh-checkout verification](docs/FRESH-INSTALL-VERIFICATION.md) for test evidence
+and limits. This source update does not replace the older v0.6.1 release archive.
+Live mail requires a paid Proton plan that includes Mail
+([Proton's requirements](https://proton.me/mail/bridge)). Account sign-in and
+credential enrollment cannot be automated by the installer.
 
 No Bridge login is needed to view the dashboard, create local templates and
 campaigns, or use the bundled historical starter pack. Live mail remains
@@ -104,7 +125,7 @@ unavailable until the local user enrolls one dedicated account in the setup
 window. Do not run account setup just to test source code.
 
 Review the generated local configuration, then open this folder as a trusted
-project in Codex. The current starter configuration enables all 61 native tools,
+project in Codex. The current starter configuration enables all 69 native tools,
 including custom templates, campaigns and request tracking. Follow the
 [assistant connection check](docs/SETUP.md#check-the-assistant-connection) before
 delegating work; local tool access is required, not just a normal chat window.
@@ -124,8 +145,9 @@ assistant's account, model costs, permissions and data policies are separate.
 
 1. Complete [New installation](#new-installation). Run the assistant's local tool
    processes under the same normal Windows user as CivicRelay and Proton Bridge.
-2. For a **new Codex connection**, run `node scripts/configure-codex.mjs` from
-   this checkout. Review the generated, ignored `.codex/config.toml`, open the
+2. For a **new Codex connection**, choose the Codex option during installation,
+   or run `node scripts/configure-codex.mjs` from this checkout. Review the
+   generated, ignored `.codex/config.toml`, open the
    folder as a trusted project, and restart its MCP connections. Project trust
    and local STDIO configuration follow the
    [official OpenAI documentation](https://learn.chatgpt.com/docs/extend/mcp).
@@ -162,7 +184,7 @@ connection and allowed-tool list before trying account setup again.
 
 ### What tooling is available?
 
-The current starter configuration exposes **53 records tools and 8 mail tools**.
+The current starter configuration exposes **61 records tools and 8 mail tools**.
 Prefer `desk_*` tools for case-linked request work; `proton_*` tools expose the
 lower-level mail connector. This overview lists common tools, not every argument:
 
@@ -172,6 +194,8 @@ lower-level mail connector. This overview lists common tools, not every argument
 | Create, version, preview and share template definitions | `desk_list_templates`, `desk_get_template`, `desk_save_template`, `desk_preview_template`, `desk_import_template`, `desk_export_template` |
 | Organize targets and track remaining requests | `desk_save_campaign`, `desk_list_campaigns`, `desk_create_request`, `desk_save_request_progress` |
 | Check sourced deadline estimates and record reviewed timing evidence | `desk_get_deadlines`, `desk_save_deadline_tracking` |
+| Review MA referrals/category gaps and preview threaded clarification text | `desk_get_ma_follow_up`, `desk_save_ma_review`, `desk_preview_ma_follow_up` |
+| Read auto-shown state guides and sourced municipal contacts; refresh a supported directory | `desk_get_state_guide`, `desk_get_municipal_contacts`, `desk_get_sources`, `desk_refresh_source`, `desk_import_source` |
 | Reuse county contacts and process missing/stale-contact research batches | `desk_list_counties`, `desk_find_contacts`, `desk_create_contact_batch`, `desk_claim_contact_tasks`, `desk_complete_contact_task` |
 | See every county's saved requests, replies and remaining gaps | `desk_list_counties` with `state`, `include_requests: true`, and optional workflow/campaign filters |
 | Review cases, save routing/text and make custodian-specific copies | `desk_list_cases`, `desk_get_case`, `desk_save_case`, `desk_clone_case` |
@@ -182,7 +206,7 @@ lower-level mail connector. This overview lists common tools, not every argument
 | Use the optional equipment/communications campaign | `desk_get_equipment_campaign`, `desk_create_equipment_request`, `desk_save_equipment_state`, `desk_save_equipment_progress` |
 | Diagnose Bridge or use low-level mail/drafts | `proton_status`, `proton_check_connection`, `proton_list_messages`, `proton_read_message`, `proton_prepare_draft`, `proton_list_drafts`, `proton_get_draft`, `proton_send_draft` |
 
-The [full 61-tool reference](docs/TOOL-REFERENCE.md) gives exact arguments and
+The [full 69-tool reference](docs/TOOL-REFERENCE.md) gives exact arguments and
 limits, including legacy intake/export helpers. `desk_record_portal` only saves
 a receipt for a submission already made elsewhere; it cannot submit a web form.
 The [county contact directory and research queue](docs/CONTACT-RESEARCH.md)
@@ -354,6 +378,7 @@ run against another person's mailbox. Do not run two dashboards on port 8766.
 - [County request maps, statuses and replies](docs/COUNTY-STATUS.md)
 - [County contacts and agent research batches](docs/CONTACT-RESEARCH.md)
 - [Source-linked deadlines and follow-ups](docs/DEADLINES.md)
+- [Massachusetts referrals, response checklists and draft follow-ups](docs/MASSACHUSETTS.md)
 - [Operator workflow and tool reference](docs/OPERATOR-TOOLS.md)
 - [Complete native tool argument schemas](docs/TOOL-REFERENCE.md)
 - [Architecture and public snapshot refresh](docs/ARCHITECTURE.md)

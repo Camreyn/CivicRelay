@@ -6,6 +6,7 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {chromium} from 'playwright';
 import {pythonExecutable} from '../runtime-config.mjs';
+import {checkNationalMap,checkCountyMap,checkDirtyMapNavigation,checkTouchMap} from './map-controls.browser.mjs';
 const fixture=spawn(pythonExecutable(),['-E','-s','-S',fileURLToPath(new URL('./county_progress_browser_fixture.py',import.meta.url))],{cwd:fileURLToPath(new URL('.',import.meta.url)),windowsHide:true,stdio:['ignore','pipe','pipe']});
 let browser,stderr='';fixture.stderr.on('data',c=>stderr+=c);
 try{
@@ -16,6 +17,7 @@ try{
  await page.route('**/*',route=>{if(!route.request().url().startsWith(origin+'/')){external.push(route.request().url());return route.abort();}return route.continue();});
  page.on('request',r=>{if(r.url().endsWith('/api/operation'))operations.push(r.postDataJSON().tool);});
  await page.goto(origin);await page.getByText('Private records workspace ready.',{exact:false}).waitFor();
+ await checkNationalMap(page);
  await page.getByRole('button',{name:'View county requests',exact:true}).click();
  await page.waitForFunction(()=>document.querySelectorAll('#county-progress-map .county-shape').length===83);
  assert.equal(await page.locator('#county-progress-rows tr').count(),83);
@@ -26,6 +28,7 @@ try{
  assert.equal(await shape('26009').getAttribute('data-status'),'acknowledged');assert.equal(await shape('26011').getAttribute('data-status'),'received');assert.equal(await shape('26013').getAttribute('data-status'),'none');
  assert.match(await page.locator('#county-progress-related').innerText(),/needing a name \/ ID match \(1\)/);
  assert.match(await page.locator('#county-progress-related').innerText(),/not assigned to counties \(1\)/);
+ await checkCountyMap(page);
  // Keyboard-accessible shapes and ordinary list navigation use the same detail.
  await shape('26005').focus();await page.keyboard.press('Enter');await page.locator('#county-progress-detail').getByRole('heading',{name:'Allegan County',exact:true}).waitFor();
  assert.match(await page.locator('#county-progress-detail').innerText(),/1 new replies/);
@@ -33,6 +36,7 @@ try{
  await page.locator('#county-progress-detail').getByRole('button',{name:'Open request & replies',exact:true}).click();
  const response=await (await opening).json();assert.equal(response.ok,true);assert.equal(response.result.case.id,ready.cases['Allegan County']);
  await page.locator('#case-workspace').waitFor({state:'visible'});assert.match(await page.locator('#case-workspace').innerText(),/Synthetic reply/);
+ await checkDirtyMapNavigation(page);
  // Marking synthetic mail reviewed must change only its county when refreshed.
  const mid=response.result.messages[0].id;const marked=await page.request.post(origin+'/api/operation',{headers:{Origin:origin,'X-Records-Desk':'1'},data:{tool:'desk_mark_reviewed',arguments:{message_id:mid}}});assert.equal((await marked.json()).ok,true);
  await page.getByRole('button',{name:'Refresh saved status',exact:true}).click();
@@ -49,6 +53,8 @@ try{
  await page.locator('#county-progress-workflow').selectOption('records');await page.waitForFunction(()=>document.querySelector('#county-progress-counts')?.textContent.includes('0 with requests · 83 with no county request'));
  await page.locator('#county-progress-workflow').selectOption('equipment');await page.waitForFunction(()=>document.querySelector('#county-progress-counts')?.textContent.includes('6 with requests'));
  await page.setViewportSize({width:390,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
+ await page.locator('#county-map-controls summary').click();assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
+ await checkTouchMap(browser,origin);
  assert.deepEqual(errors,[]);assert.deepEqual(external,[]);assert.equal(operations.some(x=>/sync_mail|send_email|publish|capture|export/.test(x)),false);
- console.log(JSON.stringify({ok:true,synthetic:true,stories:['83-county-map-and-list','distinct-request-statuses','unmatched-visible','state-reply-not-county-coverage','keyboard-county-navigation','exact-case-and-reply-open','reviewed-reply-refresh','search-and-filters','state-and-workflow-switch','mobile-width'],screenshot,external_actions:0}));
+ console.log(JSON.stringify({ok:true,synthetic:true,stories:['83-county-map-and-list','distinct-request-statuses','unmatched-visible','state-reply-not-county-coverage','keyboard-county-navigation','exact-case-and-reply-open','reviewed-reply-refresh','search-and-filters','state-and-workflow-switch','mobile-width','state-and-county-map-controls','bounded-zoom-pan-fit-selection','mouse-drag-versus-click','modifier-wheel-and-touch-pinch','persistent-layers-and-matching-legends','viewport-and-focus-preserved','unsaved-form-preserved'],screenshot,external_actions:0}));
 }finally{await browser?.close();fixture.kill();}

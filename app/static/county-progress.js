@@ -1,7 +1,9 @@
 // Read-only navigation. Request status comes from the shared guarded backend.
+import {createMapControls} from '/map-controls.mjs';
 export function createCountyProgress({$,el,op,getState,getMode,getStates,selectState,openCase,notice}){
  let initialized=false,scope=null,progress=null,chosen=null,version=0,mapData=null,mapPromise=null;
  const panel=$('county-progress-panel');
+ const mapControls=createMapControls({host:$('county-progress-map'),legend:$('county-progress-legend'),id:'county-map',label:'County request map',defaultLabels:false,selectionName:'county'});
  const names={all:'All workflows',equipment:'Equipment & communications',general:'General records desk',records:'Existing records requests'};
  const when=t=>t?new Date(t*1000).toLocaleString():'—';
  function button(label,fn){const b=el('button',label);b.type='button';b.onclick=()=>Promise.resolve().then(fn).catch(e=>notice(e.message,true));return b;}
@@ -23,7 +25,7 @@ export function createCountyProgress({$,el,op,getState,getMode,getStates,selectS
  }
  async function reload(){
   if(!panel.open)return;setup();const token=++version,state=getState(),workflow=$('county-progress-workflow').value;
-  if(scope!==state+'|'+workflow){chosen=null;progress=null;$('county-progress-search').value='';$('county-progress-filter').value='all';$('county-progress-map').replaceChildren();$('county-progress-rows').replaceChildren();$('county-progress-detail').replaceChildren();}
+  if(scope!==state+'|'+workflow){chosen=null;progress=null;$('county-progress-search').value='';$('county-progress-filter').value='all';mapControls.clear();mapControls.setLegend([]);$('county-progress-map').replaceChildren();$('county-progress-rows').replaceChildren();$('county-progress-detail').replaceChildren();}
   scope=state+'|'+workflow;$('county-progress-state').value=state;
   $('county-progress-title').textContent=(getStates().find(s=>s.code===state)?.name||state)+' · County requests';
   $('county-progress-freshness').textContent='Loading saved county request status…';panel.setAttribute('aria-busy','true');
@@ -63,21 +65,24 @@ export function createCountyProgress({$,el,op,getState,getMode,getStates,selectS
    tr.append(name,state,count);body.append(tr);
   }
   if(!rows.length){const tr=el('tr'),td=el('td','No counties match these filters.');td.colSpan=3;tr.append(td);body.append(tr);}
-  const legend=$('county-progress-legend');legend.replaceChildren(...Object.entries(progress.status_labels).map(([k,v])=>badge(k,v)));
+  mapControls.setLegend(Object.entries(progress.status_labels).map(([k,v])=>badge(k,v)));
   renderMap();renderDetail();
  }
  function renderMap(){
   if(!mapData||!progress)return;
   const box=$('county-progress-map'),shapes=mapData.states[progress.state]||[],byId=new Map(progress.counties.map(c=>[c.id,c]));
+  const focused=box.contains(document.activeElement)?document.activeElement.dataset.countyId||'canvas':null;
   const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox',mapData.view_box);svg.setAttribute('aria-label','County request status for '+progress.state);
   for(const shape of shapes){const row=byId.get(shape.id);if(!row||!shape.path)continue;
-   const g=document.createElementNS(ns,'g');g.classList.add('county-shape');g.dataset.countyId=row.id;g.dataset.status=row.status;g.dataset.selected=String(chosen===row.id);g.dataset.matched=String(visible(row));g.dataset.deadline=row.deadline_status;
+   const g=document.createElementNS(ns,'g');g.classList.add('county-shape');g.dataset.countyId=row.id;g.dataset.name=row.name;g.dataset.status=row.status;g.dataset.selected=String(chosen===row.id);g.dataset.matched=String(visible(row));g.dataset.deadline=row.deadline_status;
    g.setAttribute('tabindex','0');g.setAttribute('role','button');g.setAttribute('aria-label',`${row.name}: ${row.label}, ${row.request_count} requests`);g.setAttribute('aria-pressed',String(chosen===row.id));
    const title=document.createElementNS(ns,'title');title.textContent=`${row.name} · ${row.label} · ${row.request_count} requests${Object.keys(row.status_counts).length>1?' · Mixed statuses; open county for each request':''}`;g.append(title);
    const path=document.createElementNS(ns,'path');path.setAttribute('d',shape.path);path.setAttribute('fill-rule','evenodd');g.append(path);
    const pick=()=>{if(!visible(row)){$('county-progress-search').value='';$('county-progress-filter').value='all';}choose(row.id);};g.addEventListener('click',pick);g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pick();}});svg.append(g);
   }
   box.replaceChildren(svg);
+  mapControls.mount(svg,{scope:progress.state,selected:svg.querySelector('[data-selected=true]')});
+  if(focused)(Array.from(svg.querySelectorAll('.county-shape')).find(g=>g.dataset.countyId===focused)||svg).focus({preventScroll:true});
   const note=$('county-progress-source');note.replaceChildren();const source=el('a',`Census ${mapData.vintage} simplified county shapes`);source.href=mapData.source_page;source.target='_blank';source.rel='noopener noreferrer';
   note.append(source,el('span',' · Navigation only, not legal or election boundaries. Some county equivalents have no county government. Small areas are also available in the list.'));
  }
@@ -118,5 +123,5 @@ export function createCountyProgress({$,el,op,getState,getMode,getStates,selectS
  function open(){setup();if(panel.open)reload();else panel.open=true;panel.scrollIntoView({block:'start',behavior:'smooth'});}
  panel.addEventListener('toggle',()=>{if(panel.open){setup();if(lastMode!==getMode()){$('county-progress-workflow').value=getMode();lastMode=getMode();}reload();}else{version++;panel.removeAttribute('aria-busy');}});
  $('show-county-progress').onclick=open;
- return {contextChanged,refresh:reload,open,snapshot:()=>progress?{state:progress.state,workflow:progress.workflow,selected_county:chosen,counts:progress.counts,as_of:progress.as_of}:null};
+ return {contextChanged,refresh:reload,open,snapshot:()=>progress?{state:progress.state,workflow:progress.workflow,selected_county:chosen,counts:progress.counts,as_of:progress.as_of,map_view:mapControls.snapshot()}:null};
 }

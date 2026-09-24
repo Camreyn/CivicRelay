@@ -24,6 +24,16 @@ try{
  assert.match(await page.locator('#deadline-freshness').innerText(),/Mail may be stale/);
  assert.equal(await page.locator('[data-state="MI"]').getAttribute('data-deadline'),'overdue');
  assert.equal(await page.locator('[data-state="PA"]').getAttribute('data-deadline'),'soon');
+ const mapTools=page.locator('#national-map-controls'),miPath=page.locator('#map [data-state="MI"]>path:not(.map-selection)');
+ assert.equal(await miPath.evaluate(n=>getComputedStyle(n).stroke),'rgb(163, 46, 36)');
+ await mapTools.locator('summary').click();await mapTools.getByLabel('Timing outlines',{exact:true}).uncheck();
+ assert.equal(await miPath.evaluate(n=>getComputedStyle(n).stroke),'rgb(165, 179, 194)');
+ assert.equal(await page.locator('[data-state="MI"]').getAttribute('data-deadline'),'overdue');
+ await mapTools.getByLabel('Request status colors',{exact:true}).uncheck();
+ await mapTools.getByLabel('Timing outlines',{exact:true}).check();
+ assert.equal(await miPath.evaluate(n=>getComputedStyle(n).stroke),'rgb(163, 46, 36)','timing remains independent of status fill');
+ assert.equal(await miPath.evaluate(n=>getComputedStyle(n).fill),'rgb(220, 227, 233)');
+ await mapTools.getByLabel('Request status colors',{exact:true}).check();await mapTools.locator('summary').click();
  const screenshot=path.join(tmpdir(),'civicrelay-deadlines-synthetic.png');await page.locator('#deadline-panel').screenshot({path:screenshot});
  const api=async(tool,args={})=>{const response=await page.request.post(origin+'/api/operation',{headers:{Origin:origin,'X-Records-Desk':'1'},data:{tool,arguments:args}});const r=await response.json();if(!r.ok)throw Error(r.error);return r.result;};
  const clickOperation=async(name,action)=>{const pending=page.waitForResponse(r=>r.url().endsWith('/api/operation')&&r.request().postDataJSON()?.tool===name);await action();const r=await (await pending).json();assert.equal(r.ok,true,r.error);return r.result;};

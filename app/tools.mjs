@@ -5,13 +5,15 @@ import {serveStdio} from '@modelcontextprotocol/server/stdio';
 import {spawn} from 'node:child_process';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {pythonExecutable} from '../runtime-config.mjs';
+import {pythonExecutable,runtimeExecutable} from '../runtime-config.mjs';
 const directory=path.dirname(fileURLToPath(import.meta.url));
 import {TOOLS} from './static/tool-contracts.mjs';
 export {TOOLS};
 export function invokeWorker(name,args,signal){return new Promise(resolve=>{
  const allowed=new Set(['SYSTEMROOT','WINDIR','TEMP','TMP','LOCALAPPDATA','APPDATA','USERPROFILE','SYSTEMDRIVE','RECORDS_DESK_NODE','RECORDS_DESK_GH']);
  const env=Object.fromEntries(Object.entries(process.env).filter(([k])=>allowed.has(k.toUpperCase())));
+ // Trusted launch paths, not tool input; keep the worker environment allowlist.
+ env.RECORDS_DESK_NODE=runtimeExecutable('node');env.RECORDS_DESK_GH=runtimeExecutable('gh');
  const payload=JSON.stringify({tool:name,arguments:args});
  if(Buffer.byteLength(payload)>300000||signal?.aborted)return resolve({ok:false,error:'Request too large or cancelled.'});
  const child=spawn(pythonExecutable(),['-E','-s','-S',path.join(directory,'worker.py')],{cwd:directory,env,windowsHide:true,shell:false,stdio:['pipe','pipe','pipe']});

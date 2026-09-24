@@ -27,7 +27,7 @@ for(const row of indexed) {
   catch {throw Error('Could not safely inspect staged source: '+file);}
   validatePublicBytes(file,bytes);
 }
-for(const example of ['.private/operations/note.md','.private/collections/source.pdf','.codex/config.toml','.env.local','settings.dpapi','drafts.sqlite3','reply.eml','app/send-flow-cooldown.png']) {
+for(const example of ['.private/operations/note.md','.private/collections/source.pdf','.local/runtime-paths.json','.codex/config.toml','.env.local','settings.dpapi','drafts.sqlite3','reply.eml','app/send-flow-cooldown.png']) {
   if(!git(['check-ignore','--no-index',example]).trim()) throw Error('Missing Git exclusion: '+example);
 }
 loadCatalog();

@@ -23,6 +23,24 @@ setup/operator/architecture documentation before changing workflow behavior.
   requested workflow/campaign scope, report unmatched county cases separately,
   and never count a state response as county coverage. This lookup reads saved
   status only; it does not refresh the mailbox or authorize outreach.
+- For Massachusetts referral/response work, read `docs/MASSACHUSETTS.md`. Use the
+  MA review tools with current revisions and complete linked-message evidence.
+  Keep equipment and electronic cases separate; city/town referrals are not
+  county coverage. Appeal watches are estimates, not verified filing deadlines.
+  Previewing a clarification never saves/sends it or authorizes fees or appeals.
+- Before state-specific work, use `desk_get_state_guide`. Available guides appear
+  automatically for the selected state in the dashboard, collapsed by default
+  on state change/reload. They are not interrupting popups or automatic research.
+  No available guide does not mean no applicable rules. See `docs/SETTINGS.md`.
+- For MA municipalities, use `desk_get_municipal_contacts`, not county identities.
+  The statewide elections directory verifies published holder contacts, not each
+  designated filing RAO. Keep missing emails, dates, method and role gaps visible.
+  `desk_get_sources` is read-only; `desk_refresh_source` explicitly fetches one
+  registered public source. Check the nested result's `ok` and diagnostic code;
+  HTTP/tool transport success alone is not collection success. If blocked, a
+  reviewed complete `desk_import_source` is permitted for the exact source with
+  its actual check date; label it an import, not a live scrape. Preserve failures
+  and previous evidence. None of these operations authorizes outreach or fees.
 - The owner has removed CivicRelay's per-action send, public-issue and local-export
   dialogs. Within a user-authorized workflow, the assistant may review and perform
   these explicit actions without asking again for each one. Host permissions are
