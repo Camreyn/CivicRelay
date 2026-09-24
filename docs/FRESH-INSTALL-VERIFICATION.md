@@ -36,6 +36,32 @@ failure recovery, active-process refusal and preservation of existing settings.
 System package operations are mocked. No real credentials or private records
 are needed; no email or public issue is sent.
 
+## Verified on 2026-09-23
+
+The feature candidate `edf5045028fdee5b47519edadb06a217165c35b9` was cloned with
+`--no-local` into a new Windows temporary directory. All 163 versioned files
+were present; `.private`, `.local`, `.codex` and `node_modules` were absent
+before dependency installation. No live settings or account data were copied.
+
+| Check | Result |
+| --- | --- |
+| Locked dependency installation | 18 packages installed successfully, with lifecycle scripts disabled |
+| Read-only installer diagnostic | Passed under Windows PowerShell 5.1 with Node 22.16.0 and Python 3.13.3; Tcl/Tk, SSL, SQLite, ctypes, MCP imports and public catalog checked |
+| Node tests, including installer and actual MCP handshakes | 66 passed |
+| Application Python tests | 169 passed |
+| Connector Python tests | 50 passed |
+| Documentation | 28 Markdown files, 152 local links, 29 documented commands and 69 native tool schemas checked |
+| Synthetic Chromium workflows | All 9 passed, including map controls, MA review, Settings and municipal sources |
+| Publication check | All 163 source files and indexed blobs passed; private paths excluded and catalog snapshot verified |
+| Dependency audit | No vulnerabilities reported at the time of the check |
+| Final checkout state | Clean; no source changes produced by installation or tests |
+
+The browser runtime was already cached. Neither its download nor any vendor
+system installer was exercised in this run. Subsequent changes that record this
+evidence are documentation-only; the final publication candidate is checked
+again before pushing. GitHub's Windows workflow independently runs the suite
+for the pull request and merged `main`.
+
 ## Verification limits
 
 - This checks source completeness, locked libraries, Windows runtime probes,
