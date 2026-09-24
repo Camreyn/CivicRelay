@@ -15,10 +15,14 @@ import intake
 import mailbox
 import equipment
 import general
+import send_state
 import templates
 import integrations
 import deadlines
 import contacts
+import ma_follow_up
+import public_sources
+import state_guides
 
 ARGUMENTS={
  'desk_get_equipment_campaign':{'state'},
@@ -46,9 +50,9 @@ ARGUMENTS |= {
  'desk_list_campaigns':set(), 'desk_save_campaign':{'campaign_id','revision','name','description','template_id','date_start','date_end','targets'},
  'desk_create_request':{'campaign_id','template_id','target_id','agency','values'},
  'desk_save_request_progress':{'case_id','revision','response_stage','response_message_id','coverage','note','fee_note','procedure_note','deadline_date','deadline_kind','deadline_source','deadline_basis','deadline_checked_date'},
-} | integrations.ARGUMENTS | deadlines.ARGUMENTS | contacts.ARGUMENTS
+} | integrations.ARGUMENTS | deadlines.ARGUMENTS | contacts.ARGUMENTS | ma_follow_up.ARGUMENTS | public_sources.ARGUMENTS | state_guides.ARGUMENTS
 READ_ONLY={'desk_status','desk_list_cases','desk_get_case','desk_get_workflow','desk_list_messages','desk_get_intake','desk_get_equipment_campaign',
-           'desk_get_workspace','desk_list_templates','desk_get_template','desk_preview_template','desk_export_template','desk_list_campaigns'} | integrations.READ_ONLY | deadlines.READ_ONLY | contacts.READ_ONLY
+           'desk_get_workspace','desk_list_templates','desk_get_template','desk_preview_template','desk_export_template','desk_list_campaigns'} | integrations.READ_ONLY | deadlines.READ_ONLY | contacts.READ_ONLY | ma_follow_up.READ_ONLY | public_sources.READ_ONLY | state_guides.READ_ONLY
 
 STATUS_LABELS={'none':'No prepared request','routing':'Routing needed','draft':'Draft',
  'waiting':'Awaiting reply','new':'New reply','attention':'Action needed',
@@ -124,6 +128,7 @@ class Service:
         artifacts=[a for a in self.db.all('artifact') if a['case_id']==key]
         artifact_page=artifacts[artifact_offset:artifact_offset+100]
         return {'case':self.view_case(c),'messages':[self.with_body(m) for m in page],
+                'ma_follow_up':ma_follow_up.overview(self,key) if c.get('state')=='MA' else None,
                 'next_before_message_id':page[-1]['id'] if len(messages)>30 else None,
                 'artifacts':artifact_page,'artifact_count':len(artifacts),
                 'next_artifact_offset':artifact_offset+100 if len(artifacts)>artifact_offset+100 else None,
@@ -165,17 +170,19 @@ class Service:
     def reconcile_sends(self):
         for c in self.db.all('case'):
             if not c['drafts']:continue
-            d=self.mail_store.get_draft(c['drafts'][-1])
-            if (c.get('campaign_id')==equipment.ID or c.get('general_campaign_id')) and d['state']=='accepted' and not equipment.valid_receipt(d):
-                if c.get('latest_send_state')!='receipt_invalid':
-                    c.update(stage='attention',latest_send_state='receipt_invalid');self.save(c)
-                continue
-            if c.get('latest_send_state')==d['state']:continue
-            c['latest_send_state']=d['state']
-            if d['state']=='accepted':c.update(stage='waiting',last_sent_at=d['receipt']['accepted_at'])
-            elif d['state'] not in ('draft',):c['stage']='attention'
+            draft_id=c['drafts'][-1];d=self.mail_store.get_draft(draft_id)
+            state=send_state.outcome(d);reconciled=send_state.reconciled(c,d,draft_id)
+            if reconciled and c.get('latest_send_draft_id')==draft_id:continue
+            c.update(latest_send_draft_id=draft_id,latest_send_state=state)
+            # Backfill legacy identities without undoing later operator stages.
+            if not reconciled:
+                if state=='accepted':c.update(stage='waiting',last_sent_at=d['receipt']['accepted_at'])
+                elif state!='draft':c['stage']='attention'
             self.save(c)
     def _dispatch(self,name,args):
+        if name=='desk_get_state_guide':return state_guides.get_guide(self,args.get('state'))
+        if name in public_sources.ARGUMENTS:return public_sources.dispatch(self,name,args)
+        if name in ma_follow_up.ARGUMENTS:return ma_follow_up.dispatch(self,name,args)
         if name in contacts.ARGUMENTS:return contacts.dispatch(self,name,args)
         if name=='desk_get_deadlines':return deadlines.overview(self,args.get('case_id'))
         if name=='desk_save_deadline_tracking':return deadlines.save_tracking(self,args)
@@ -223,6 +230,10 @@ class Service:
                     'equipment_campaign':{'id':equipment.ID,'categories':equipment.CATEGORIES,'phases':equipment.PHASES,
                         'policy':equipment.POLICY,'tools':['desk_get_equipment_campaign','desk_create_equipment_request','desk_save_equipment_state','desk_save_equipment_progress']},
                     'deadline_tools':['desk_get_deadlines','desk_save_deadline_tracking'],
+                    'ma_follow_up_tools':list(ma_follow_up.ARGUMENTS),
+                    'state_guides':{'tool':'desk_get_state_guide','automatic_on_state_selection':True,'default_collapsed':True,'policy':'Read available state guides before state-specific work. Dashboard shows them automatically without opening the panel. No guide does not mean no rules.'},
+                    'public_source_tools':list(public_sources.ARGUMENTS),
+                    'municipal_contact_policy':public_sources.POLICY,
                     'county_contact_tools':list(contacts.ARGUMENTS),
                     'county_contact_policy':contacts.POLICY,
                     'county_research_execution':'Create a scoped gap batch, then have connected research agents claim up to five tasks per worker, research official sources and return dated evidence. No embedded model or automatic sending.',

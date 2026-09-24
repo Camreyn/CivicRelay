@@ -1,0 +1,40 @@
+// Actual UI -> guarded HTTP -> isolated synthetic store; no live mail or web fetch.
+import assert from 'node:assert/strict';
+import {spawn} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
+import {tmpdir} from 'node:os';
+import path from 'node:path';
+import {chromium} from 'playwright';
+import {pythonExecutable} from '../runtime-config.mjs';
+const fixture=spawn(pythonExecutable(),['-E','-s','-S',fileURLToPath(new URL('./sources_browser_fixture.py',import.meta.url))],{cwd:fileURLToPath(new URL('.',import.meta.url)),windowsHide:true,stdio:['ignore','pipe','pipe']});
+let browser,stderr='';fixture.stderr.on('data',c=>stderr+=c.toString());
+try{
+ const ready=await new Promise((resolve,reject)=>{let output='';const timer=setTimeout(()=>reject(Error('Fixture timeout: '+stderr)),20000);fixture.stdout.on('data',c=>{output+=c;if(output.includes('\n')){clearTimeout(timer);resolve(JSON.parse(output.split('\n')[0]));}});fixture.on('error',reject);fixture.on('exit',code=>{clearTimeout(timer);reject(Error('Fixture exit '+code+': '+stderr));});});
+ assert.equal(ready.synthetic,true);const origin=`http://127.0.0.1:${ready.port}`;
+ browser=await chromium.launch({headless:true});const page=await browser.newPage({viewport:{width:1440,height:1100}});
+ const errors=[],external=[],operations=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
+ await page.route('**/*',route=>{if(!route.request().url().startsWith(origin+'/')){external.push(route.request().url());return route.abort();}return route.continue();});
+ page.on('request',r=>{if(r.url().endsWith('/api/operation'))operations.push(r.postDataJSON().tool);});
+ await page.goto(origin);await page.getByText('Private records workspace ready.',{exact:false}).waitFor();
+ await page.locator('#state-select').selectOption('MA');await page.locator('#state-guides > summary').filter({hasText:'Massachusetts guides'}).waitFor();
+ assert.equal(await page.locator('#state-guides').evaluate(n=>n.open),false);
+ await page.locator('#state-guides > summary').click();assert.match(await page.locator('#state-guides').innerText(),/not verified designated RAOs/);
+ assert.ok(await page.locator('#state-guides a').count()>=5);
+ await page.locator('#municipal-contacts > summary').click();await page.getByText('351 / 351 municipalities collected',{exact:false}).waitFor();
+ await page.locator('#municipal-search').fill('Boston');await page.locator('#municipal-contacts').getByRole('button',{name:'Search',exact:true}).click();
+ await page.locator('.municipal-card h3').filter({hasText:/^Boston$/}).waitFor();assert.equal(await page.locator('.municipal-card').count(),1);
+ assert.match(await page.locator('.municipal-card').innerText(),/Designated RAO: not verified/);
+ assert.equal(await page.locator('.municipal-card a').getAttribute('href'),'https://www.sec.state.ma.us/divisions/elections/voter-resources/find-my-local-election-office.htm');
+ await page.locator('#state-select').selectOption('AL');await page.waitForFunction(()=>document.querySelector('#state-guides').hidden);assert.equal(await page.locator('#municipal-contacts').isVisible(),false);
+ await page.locator('#state-select').selectOption('MA');await page.locator('#state-guides > summary').filter({hasText:'Massachusetts guides'}).waitFor();assert.equal(await page.locator('#state-guides').evaluate(n=>n.open),false);
+ await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByText('351',{exact:true}).waitFor();assert.equal(operations.filter(x=>x==='desk_refresh_source').length,0);
+ await page.getByRole('button',{name:'Refresh source: Massachusetts city/town election offices',exact:true}).click();await page.getByRole('heading',{name:'Source could not be refreshed',exact:true}).waitFor();
+ assert.match(await page.locator('#settings-result-message').innerText(),/Previous contacts were preserved/);
+ await page.getByRole('button',{name:'Done',exact:true}).click();assert.match(await page.locator('#civic-settings').innerText(),/351/);
+ const screenshot=path.join(tmpdir(),'civicrelay-settings-integrated-synthetic.png');await page.locator('#civic-settings').screenshot({path:screenshot});
+ await page.getByRole('button',{name:'Close settings',exact:true}).click();
+ await page.locator('#municipal-contacts > summary').click();await page.getByText('351 / 351 municipalities collected',{exact:false}).waitFor();
+ await page.reload();await page.getByText('Private records workspace ready.',{exact:false}).waitFor();await page.locator('#state-select').selectOption('MA');await page.locator('#state-guides > summary').filter({hasText:'Massachusetts guides'}).waitFor();assert.equal(await page.locator('#state-guides').evaluate(n=>n.open),false);
+ assert.equal(operations.filter(t=>/sync|send|publish|export|prepare_email/.test(t)).length,0);assert.deepEqual(errors,[]);assert.deepEqual(external,[]);
+ console.log(JSON.stringify({ok:true,synthetic:true,stories:['auto-guide-default-collapsed','state-switch-and-reload','sourced-municipal-search','settings-refresh-failure-preserves-contacts'],screenshot,external_actions:0}));
+}finally{await browser?.close();fixture.kill();}

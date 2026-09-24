@@ -34,6 +34,8 @@ jobs:
           & $python -c "import tkinter, ctypes; print('Python desktop dependencies available')"
       - name: Install locked dependencies without lifecycle scripts
         run: npm.cmd ci --ignore-scripts --no-audit --no-fund
+      - name: Read-only Windows setup diagnostics (no accounts or system installs)
+        run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/install.ps1 -CheckOnly
       - name: Synthetic unit, MCP, storage, and documentation checks
         run: npm.cmd test
       - name: Publication path, staged-content and snapshot checks

@@ -7,6 +7,9 @@ import {fileURLToPath} from 'node:url';
 import {chromium} from 'playwright';
 
 const assets = new Map(['index.html', 'app.js', 'workspace.js', 'send-controls.mjs', 'equipment-campaign.js', 'general-workspace.js',
+  'ma-contracts.mjs', 'ma-follow-up.js',
+  'source-contracts.mjs', 'state-guides.js', 'state-guides.css', 'settings.js', 'settings.css',
+  'map-controls.mjs', 'map-controls.css',
   'style.css', 'status.css', 'general.css', 'general-contracts.mjs', 'deadline-contracts.mjs', 'deadlines.js', 'deadlines.css', 'contact-contracts.mjs', 'contacts.js', 'contacts.css', 'county-progress.js', 'county-progress.css', 'county-map.json', 'tool-contracts.mjs', 'page-tools.mjs', 'map.json']
   .map(name => ['/' + (name === 'index.html' ? '' : name), name]));
 const geometry = JSON.parse(await readFile(new URL('./static/map.json', import.meta.url)));
@@ -36,6 +39,7 @@ const server = createServer(async (req, res) => {
     if (req.method === 'POST' && req.url === '/api/operation') {
       let body = ''; for await (const chunk of req) body += chunk;
       const {tool, arguments: args} = JSON.parse(body);
+      if (tool === 'desk_get_state_guide') return json(res,{ok:true,result:{state:args.state,state_name:'Indiana',available:false,guides:[]}});
       if (tool === 'desk_get_case') return json(res, {ok: true, result: {case: record, drafts: [draft],
         messages: [], artifacts: [], issues: [], events: [], next_artifact_offset: null}});
       if (tool === 'desk_status') {

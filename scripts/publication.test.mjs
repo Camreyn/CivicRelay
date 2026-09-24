@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {assertPublicPath,sensitiveMarkers,validatePublicBytes} from './publication-policy.mjs';
 test('publication path policy admits release source and refuses private paths/traversal',()=>{
-  for(const file of ['README.md','.gitattributes','Open CivicRelay.cmd','docs/SETUP.md','app/static/index.html','.github/workflows/ci.yml']) assert.doesNotThrow(()=>assertPublicPath(file));
-  for(const file of ['.private/notes.md','.codex/config.toml','app/reply.eml','docs/screenshot.png','../README.md','app/../README.md','unknown.txt','app\\source.py']) assert.throws(()=>assertPublicPath(file));
+  for(const file of ['README.md','.gitattributes','Open CivicRelay.cmd','Install CivicRelay.cmd','Check CivicRelay.cmd','Open Proton Setup.cmd','docs/INSTALL.md','docs/SETUP.md','app/static/index.html','.github/workflows/ci.yml']) assert.doesNotThrow(()=>assertPublicPath(file));
+  for(const file of ['.private/notes.md','.local/runtime-paths.json','.codex/config.toml','app/reply.eml','docs/screenshot.png','../README.md','app/../README.md','unknown.txt','app\\source.py']) assert.throws(()=>assertPublicPath(file));
 });
 test('token detection reports categories without exposing matched values',()=>{
   const fixtures=['ghp_'+'A'.repeat(40),'sk-proj-'+'Z'.repeat(50),'AKIA'+'Z'.repeat(16),'-----BEGIN '+'PRIVATE KEY-----'];

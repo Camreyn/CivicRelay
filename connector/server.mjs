@@ -3,6 +3,7 @@ import { serveStdio } from "@modelcontextprotocol/server/stdio";
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { pythonExecutable } from '../runtime-config.mjs';
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const object = (properties = {}, required = []) => ({ type: "object", properties, required, additionalProperties: false });
@@ -53,8 +54,8 @@ export function invokeWorker(name, args, signal) {
   return new Promise((resolve) => {
     const failure = (error) => ({ ok: false, error });
     if (signal?.aborted) return resolve(failure("Operation cancelled before startup."));
-    const executable = process.env.CRM_PROTON_PYTHON || "C:\\Python313\\python.exe";
-    if (!path.isAbsolute(executable)) return resolve(failure("Configure an absolute Python executable path."));
+    let executable;
+    try { executable = pythonExecutable(); } catch { return resolve(failure('Invalid local Python runtime configuration. See docs/INSTALL.md.')); }
     const payload = JSON.stringify({ tool: name, arguments: args });
     if (Buffer.byteLength(payload) > 300000) return resolve(failure("Connector request exceeds the size limit."));
     const child = spawn(executable, ["-E", "-s", "-S", path.join(directory, "worker.py")], {

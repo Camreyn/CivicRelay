@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {TOOLS,validateInput} from './static/tool-contracts.mjs';
 import {createPageTools,registerPageTools} from './static/page-tools.mjs';
+const pageContracts=TOOLS.filter(t=>t.page!==false);
 
 function example(schema){
  if(Object.hasOwn(schema,'const'))return schema.const;
@@ -24,11 +25,11 @@ function fixture(){
 }
 test('all backend tasks have shared page schemas, annotations and validation',async()=>{
  const {actions,calls}=fixture(),page=createPageTools(actions);
- assert.equal(page.length,TOOLS.length+11);assert.equal(new Set(page.map(t=>t.name)).size,TOOLS.length+11);
+ assert.equal(page.length,pageContracts.length+11);assert.equal(new Set(page.map(t=>t.name)).size,pageContracts.length+11);
  assert.ok(page.length<=64,'Keep WebMCP within the host tool-count budget; prefer canonical tools over aliases.');
  assert.ok(Buffer.byteLength(JSON.stringify(page))<60000,'Keep the complete WebMCP configuration below a conservative 60 kB budget.');
  assert.equal(page.some(t=>t.name==='records_sync_headers'),false);assert.ok(page.some(t=>t.name==='desk_sync_mail'));
- for(const contract of TOOLS){const tool=page.find(t=>t.name===contract.name);assert.deepEqual(tool.inputSchema,contract.schema);assert.equal(tool.annotations.readOnlyHint,contract.readOnly);assert.equal(tool.annotations.untrustedContentHint,true);
+ for(const contract of pageContracts){const tool=page.find(t=>t.name===contract.name);assert.deepEqual(tool.inputSchema,contract.schema);assert.equal(tool.annotations.readOnlyHint,contract.readOnly);assert.equal(tool.annotations.untrustedContentHint,true);
   const args=example(contract.schema);await tool.execute(args);assert.equal(calls.at(-1).name,contract.name);
   const count=calls.length;await assert.rejects(()=>tool.execute({...args,approval_bypass:true}));assert.equal(calls.length,count);
  }
@@ -60,7 +61,7 @@ test('registration feature-detects, reports failures and forwards abort lifecycl
  const controller=new AbortController(),seen=[],errors=[];
  const context={registerTool:async(tool,options)=>{assert.equal(options.signal,controller.signal);if(tool.name==='desk_status')throw Error('synthetic failure');seen.push(tool);}};
  const r=await registerPageTools(context,actions,{signal:controller.signal,onError:name=>errors.push(name)});
- assert.equal(r.registered.length,TOOLS.length+10);assert.deepEqual(r.failed,['desk_status']);assert.deepEqual(errors,['desk_status']);assert.equal(seen.length,TOOLS.length+10);
+ assert.equal(r.registered.length,pageContracts.length+10);assert.deepEqual(r.failed,['desk_status']);assert.deepEqual(errors,['desk_status']);assert.equal(seen.length,pageContracts.length+10);
  controller.abort();assert.deepEqual((await registerPageTools(context,actions,{signal:controller.signal})).registered,[]);
 });
 test('in-flight page tool blocks concurrent operations without retrying them',async()=>{

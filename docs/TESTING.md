@@ -27,6 +27,13 @@ Set the installed Python/Node paths as described in [setup](SETUP.md) first.
 `npm.cmd test` includes Node tests, Python tests and documentation checks. No
 Bridge account, GitHub authentication, API key or real email is required.
 
+The guided installer runs this same synthetic suite after dependency setup.
+`npm.cmd run test:install` can run its Windows bootstrap regression separately:
+package-manager actions are mocked, configuration writes use disposable
+directories, and actual runtime probes are read-only. It covers first/repeat
+installs, ZIP-style source without Git, path handling, failure recovery and
+preserved host settings. It is not a fresh-VM/UAC or live-account test.
+
 | Boundary | Evidence supplied by the suite | Limit |
 | --- | --- | --- |
 | UI → local API | Real Chromium with the actual static app and synthetic loopback responses; map, navigation, form preservation, countdown and errors | No real account or agency action |
@@ -36,7 +43,7 @@ Bridge account, GitHub authentication, API key or real email is required.
 | Encryption/storage guards | Windows DPAPI round trips using synthetic values, tamper/link/repository-path rejection | Not a third-party cryptographic/security audit |
 | Send → receipt | Direct send without Tkinter/confirmation arguments, mocked SMTP, exact digest, quota, concurrency, uncertain outcomes and duplicate prevention | No real message sent; delivery is not tested |
 | Intake → public issue/export | Direct actions without approval modules, mocked GitHub, exact form/snapshot identity, private-link guards and uncertain-publication handling; synthetic ZIP byte checks | No public issue or real-record export created by tests |
-| Docs → implementation | Local links/npm commands checked; 61-tool reference compared to source schemas | External pages and prose still need human review |
+| Docs → implementation | Local links/npm commands checked; 69-tool reference compared to source schemas | External pages and prose still need human review |
 | Fresh workspace → templates → campaign | Synthetic strict-schema, safe-rendering, immutable-version, private-field, idempotency, target retention and linked-evidence tests | Literal template text still needs privacy and procedural review |
 | Configured destination → exact preview → receipt | Synthetic destination-revision invalidation, exact repository URL verification, unresolved-attempt locks and local case ZIP checks | Remote form schema/labels are not fetched or validated automatically |
 | Account profile → storage/draft | Synthetic v1 compatibility, fresh v2 identities, display-name/header and profile digest binding, ambiguous-store refusal | No new real account is enrolled or used by tests |
@@ -50,6 +57,17 @@ screenshots. A fixture's “send call” means a call to the fake local handler,
 not an email. Tests use temporary profiles for worker mail operations; do not
 replace those fixtures with the operator's real account.
 
+## Reply send-status regression
+
+`app/test_send_reconciliation.py` covers consecutive accepted messages, recovery
+of older stale status, one-time legacy identity backfill, preserved operator
+stages, idempotence, invalid/uncertain receipts across case families, read-only
+campaign projection, and note edits after recovery. Its fixtures are synthetic
+and forbid transport. `app/test_records_desk.py` also sends an initial request
+and a threaded reply through mocked SMTP without an intervening sync, checks
+the latest receipt/status, and confirms duplicate sending remains blocked.
+These tests run in `npm.cmd test`; no real email or account data is used.
+
 ## Assistant configuration regression
 
 `scripts/configuration.test.mjs` is part of `npm.cmd test` and the Windows CI
@@ -57,7 +75,7 @@ suite. It covers the configuration a new user actually generates, not just
 tools advertised directly by the servers:
 
 - Parses generated TOML with Python's standard-library `tomllib`; requires all
-  53 records and 8 mail tools exactly once. Negative fixtures detect missing,
+  61 records and 8 mail tools exactly once. Negative fixtures detect missing,
   duplicate, stale or disabled tools and a disabled server.
 - Checks absolute local entry points and the existing host permission defaults
   and per-tool overrides without opening or changing any real `.codex` file.
@@ -105,12 +123,50 @@ unmatched cases, state-response separation and mobile layout. Both are included
 in the normal unit/browser commands. No real inbox or county outreach is used.
 See [county status](COUNTY-STATUS.md) for interpretation limits.
 
+`app/map-controls.test.mjs` checks extent validation, bounded/aspect-correct zoom
+and pan, fit-selection padding and display-preference validation. The county
+browser story also uses `app/map-controls.browser.mjs` for both maps: real pointer
+drag versus selection, modifier-wheel zoom, keyboard navigation/focus retention,
+touch pinch, zoom limits, fit controls, layer/legend persistence, workflow/state
+scope, mobile overflow and preservation of unsaved correspondence. The timing
+browser story verifies rendered outline visibility without changing saved dates.
+These checks use only isolated synthetic profiles and bundled geography.
+
+## MA response-review regression
+
+The MA response-review regression covers strict category/evidence validation,
+revision conflicts, workflow separation, preserved submission dates, independent
+appeal watches, reassigned/new-message invalidation, atomic saves and read-only
+previews. Its browser story uses the actual handler and isolated synthetic store
+to save/reload reviews, preserve dirty edits, and stage a threaded follow-up
+without saving/sending it. No real inbox, case assessment or appeal is used.
+See [MA helper limits](MASSACHUSETTS.md).
+
+## State guides, municipal sources and Settings regression
+
+`app/test_public_sources.py` uses synthetic directory entries and mocked HTTPS.
+It covers complete-name validation, multi-purpose emails, missing email gaps,
+duplicate/partial/block pages, freshness, pagination, old-import rejection,
+source history preservation, request isolation, strict schemas and bounded
+fetch behavior. It never contacts an official site during automated tests.
+
+`app/settings.browser.test.mjs` tests keyboard tabs, local source status,
+explicit refresh/import, safe diagnostics, no auto-retry, input preservation,
+close/reopen behavior and mobile layout. `app/sources.browser.test.mjs` runs the
+actual dashboard and HTTP handler over a disposable store: selected-state guides
+are automatic/default-collapsed, source links and municipal search render, and
+failed refreshes retain the good collection across reloads. All external
+requests and mail/publication operations are forbidden in these fixtures.
+
 ## GitHub Actions
 
 [Windows verification](../.github/workflows/ci.yml) runs on pushes to `main` and
 pull requests. It uses pinned official actions, Windows, Node 22, Python 3.13,
 read-only repository permission and no persisted checkout credentials. It runs
 synthetic tests, documentation checks, publication checks and the browser fixture.
+It also runs the new setup script's read-only prerequisite check under Windows
+PowerShell 5.1. WinGet installation, license/UAC dialogs and Proton sign-in are
+not run in CI; the installer unit tests mock system package changes.
 No mail credentials, Bridge enrollment, secrets, live browser smoke or artifact
 uploads are configured in CI.
 

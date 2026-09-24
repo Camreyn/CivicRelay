@@ -1,0 +1,6 @@
+.state-guides section+section{border-top:1px solid var(--line,#d9dfe2);margin-top:1.5rem;padding-top:1rem}
+.state-guides h4{margin-bottom:.4rem}.state-guides p{line-height:1.55}
+#municipal-contacts form{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin:1rem 0}
+#municipal-contacts input{min-width:12rem;max-width:100%}
+.municipal-card{border-top:1px solid var(--line,#d9dfe2);padding:1rem 0;overflow-wrap:anywhere}
+.municipal-card p{margin:.4rem 0}.municipal-card small{display:block;margin:.5rem 0;color:var(--muted,#53606d)}

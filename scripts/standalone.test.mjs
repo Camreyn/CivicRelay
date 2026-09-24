@@ -30,8 +30,8 @@ test('local MCP configuration preserves both narrow tool sets and approval promp
  assert.equal((result.match(/default_tools_approval_mode = 'writes'/g)||[]).length,2);
  assert.ok(result.includes('[mcp_servers.proton_mail]'));assert.ok(result.includes('[mcp_servers.records_desk]'));
  assert.ok(!result.includes('[mcp_servers.civicresultmaps]'));assert.ok(!result.includes('__ROOT__'));
- assert.ok(result.includes(`RECORDS_DESK_GH = '${process.execPath}'`));assert.ok(!result.includes('__GH__'));
+ assert.ok(result.includes(`RECORDS_DESK_GH = ${JSON.stringify(process.execPath)}`));assert.ok(!result.includes('__GH__'));
  assert.throws(()=>buildMcpConfig(template,{ROOT:'relative',NODE:process.execPath,PYTHON:pythonExecutable()}),/absolute/);
- assert.throws(()=>buildMcpConfig(template,{ROOT:root+"'unsafe",NODE:process.execPath,PYTHON:pythonExecutable()}),/absolute/);
+ assert.throws(()=>buildMcpConfig(template,{ROOT:root+'\nunsafe',NODE:process.execPath,PYTHON:pythonExecutable()}),/absolute/);
  assert.throws(()=>buildMcpConfig(template,{ROOT:root}),/Missing/);
 });

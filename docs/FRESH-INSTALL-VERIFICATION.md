@@ -1,60 +1,80 @@
 # Fresh-install rehearsal
 
-This is a synthetic source/dependency rehearsal for the CivicRelay 0.6.0
-candidate. It does not enroll a mailbox, read an existing private store, contact
-Bridge or GitHub, send mail, synchronize mail, publish, or create an external
-account.
+This guide describes the current-source release check, replacing the historical
+v0.6.0 rehearsal. Use the [current installation instructions](INSTALL.md), not
+an older release archive. The test is a clean source/dependency rehearsal on
+Windows with installed prerequisites, not a fresh Windows VM installation.
 
-## Method
+## Reproducible method
 
-The final refreshed rehearsal copied 98 tracked or nonignored candidate files into a separate
-clean directory under `.etl/relay-general-build/rehearsal/clean-source`. The
-copy excludes `.git`, `.private`, and `node_modules`; it is not a clone of any
-live mailbox/profile. The copy helper uses `git ls-files --cached --others
---exclude-standard`, so ignored private material is not included.
+1. Commit the reviewed source, then clone that exact candidate into a new
+   disposable directory with `git clone --no-local`. Do not copy a live profile,
+   ignored configuration, private exports or `node_modules` into it.
+2. Confirm `.private`, `.local`, `.codex` and `node_modules` are absent before
+   installation. Select the existing Node and Python executables explicitly
+   for this process; do not read the operator's saved runtime configuration.
+3. Run `npm.cmd ci --ignore-scripts --include=dev --no-audit --no-fund` from the
+   candidate's lockfile, then the installer diagnostic below. This does not
+   install system packages, start the dashboard, enroll an account or read mail.
+4. Run `npm.cmd test`, `npm.cmd run test:browser`,
+   `npm.cmd run publish:check` and `npm.cmd audit --audit-level=low`.
+   Browser tests need Playwright Chromium installed separately using
+   `npm.cmd exec -- playwright install chromium` when it is not already cached.
+5. Confirm the checkout remains clean. Tests must use disposable synthetic
+   profiles and fixture servers, never the operator's live profile or dashboard.
+   Record the results below and repeat verification for the final source commit.
 
-`npm.cmd ci --ignore-scripts` completed against the copied `package-lock.json`:
-18 packages were installed and npm reported no audit vulnerabilities. This
-confirms that the documented Node/Python prerequisites and lockfile are enough
-to install the JavaScript dependencies for this rehearsal.
+The read-only installer diagnostic is:
 
-## Offline checks
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\install.ps1 -CheckOnly
+```
 
-- `npm.cmd run test:docs` passed in the initial clean copy with
-  `network_accessed:false`. After the generated tool reference was refreshed in
-  the candidate, the same check also passed from the source candidate with 21
-  Markdown files, 57 local links, 24 documented commands, and 48 native-tool
-  schemas checked.
-- `python -m py_compile` was run over copied `app/` and `connector/` Python
-  files without a syntax error.
-- A newly created empty Windows Temp directory was used as `LOCALAPPDATA` for
-  `proton_status`. It returned `configured:false`, no email/display/profile ID,
-  `legacy_storage:false`, a fresh `CivicRelay\ProtonConnector` path, and
-  `network_accessed:false`.
-- The same kind of empty synthetic profile returned the blank workspace defaults
-  from `desk_get_workspace`: revision zero, blank profile fields, starter pack
-  `blank`, and no configured account.
+The install regression in `npm.cmd test` separately exercises ZIP-style source
+without Git, first/repeat installs, fixed WinGet package arguments, path handling,
+failure recovery, active-process refusal and preservation of existing settings.
+System package operations are mocked. No real credentials or private records
+are needed; no email or public issue is sent.
 
-The temporary profile directory was outside the Git worktree and removed in the
-same command. An initial attempt to put synthetic `LOCALAPPDATA` under the
-rehearsal directory was correctly refused by the private-storage Git-worktree
-guard; that refusal is expected security behavior, not a setup workaround.
+## Verified on 2026-09-23
 
-## Rehearsal suite evidence
+The feature candidate `edf5045028fdee5b47519edadb06a217165c35b9` was cloned with
+`--no-local` into a new Windows temporary directory. All 163 versioned files
+were present; `.private`, `.local`, `.codex` and `node_modules` were absent
+before dependency installation. No live settings or account data were copied.
 
-After refreshing the final candidate into the clean dependency installation,
-`npm.cmd test` completed successfully: 45 Node tests, 83 application Python tests,
-50 connector Python tests, and the documentation checks (21 Markdown files,
-59 local links, 24 documented commands, 48 native schemas). The documented JSON
-template example is imported and rendered by a regression test.
+| Check | Result |
+| --- | --- |
+| Locked dependency installation | 18 packages installed successfully, with lifecycle scripts disabled |
+| Read-only installer diagnostic | Passed under Windows PowerShell 5.1 with Node 22.16.0 and Python 3.13.3; Tcl/Tk, SSL, SQLite, ctypes, MCP imports and public catalog checked |
+| Node tests, including installer and actual MCP handshakes | 66 passed |
+| Application Python tests | 169 passed |
+| Connector Python tests | 50 passed |
+| Documentation | 28 Markdown files, 152 local links, 29 documented commands and 69 native tool schemas checked |
+| Synthetic Chromium workflows | All 9 passed, including map controls, MA review, Settings and municipal sources |
+| Publication check | All 163 source files and indexed blobs passed; private paths excluded and catalog snapshot verified |
+| Dependency audit | No vulnerabilities reported at the time of the check |
+| Final checkout state | Clean; no source changes produced by installation or tests |
 
-All three synthetic browser suites also passed in the candidate source. The
-generic story verifies profile persistence, template preview/duplicate/archive/
-export/import, frozen request versions, remaining targets, exact fake SMTP
-acceptance, assigned incoming mail, attachment capture, a real temporary ZIP,
-response evidence, destination invalidation, fake publication and uncertain
-outcome reconciliation. Desktop and narrow-window synthetic screenshots were
-inspected. No real mail or public issue was sent by any rehearsal.
+The browser runtime was already cached. Neither its download nor any vendor
+system installer was exercised in this run. Subsequent changes that record this
+evidence are documentation-only; the final publication candidate is checked
+again before pushing. GitHub's Windows workflow independently runs the suite
+for the pull request and merged `main`.
 
-These results do not verify real provider delivery, current agency procedures,
-an actual GitHub repository's permissions, or a cloud/multi-account deployment.
+## Verification limits
+
+- This checks source completeness, locked libraries, Windows runtime probes,
+  application behavior and synthetic assistant workflows. Existing compatible
+  Node/Python and cached browser installations are not a clean Windows VM.
+- WinGet/Store availability, vendor installers, administrator prompts, managed
+  PC policies and actual Proton sign-in are not exercised. The full installer
+  is not run against a concurrently active live dashboard; its refusal is a
+  safety feature, not something to bypass for a rehearsal.
+- It does not prove provider delivery, agency procedures, GitHub permissions,
+  Codex UI trust/permission behavior or compatibility with every assistant.
+- Publication checks cover allowlisted source paths, staged content and limited
+  token markers. They supplement, not replace, manual privacy review.
+
+See [testing](TESTING.md) for individual workflow coverage and
+[contribution rules](CONTRIBUTING.md) for the publication procedure.

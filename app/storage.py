@@ -10,7 +10,7 @@ import uuid
 from runtime import REPO
 from secure_store import ConnectorError, WindowsProtector, records_root, guard_repository_location
 
-KINDS={'case','mail','body','blob','artifact','sync','issue','event','campaign','workspace','template','destination','contact','contact_batch'}
+KINDS={'case','mail','body','blob','artifact','sync','issue','event','campaign','workspace','template','destination','contact','contact_batch','source','source_snapshot'}
 IDENTIFIED_KINDS=KINDS-{'blob','sync'}
 
 class Database:

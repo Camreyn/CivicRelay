@@ -9,6 +9,7 @@ import uuid
 
 import connector
 import equipment
+import send_state
 from intake import safe_url
 from secure_store import ConnectorError, canonical
 import templates
@@ -125,7 +126,7 @@ def _derived_request_stage(service, case):
         # Once reconciliation has recorded this receipt, the ordinary case
         # stage may reflect a handled/closed workflow. An accepted receipt
         # that has not been reconciled yet is still surfaced as waiting.
-        return stage if case.get('latest_send_state') == draft.get('state') else 'waiting'
+        return stage if send_state.reconciled(case, draft, drafts[-1]) else 'waiting'
     if draft.get('state') != 'draft':
         return 'attention'
     return stage

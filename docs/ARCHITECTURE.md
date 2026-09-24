@@ -13,6 +13,15 @@ the sibling `connector/` package. No runtime import reaches into the
 CivicResultMaps source checkout. All npm imports resolve in this project's own
 installation. `app/static/map.json` is a prebuilt display asset.
 
+The Windows bootstrap (`scripts/install.ps1`) detects compatible runtimes,
+installs selected missing vendor applications through fixed WinGet package IDs,
+installs locked npm dependencies, and runs synthetic tests. It does not enroll
+mail, change assistant-host trust, or start background MCP servers. It saves
+only executable paths to ignored `.local/runtime-paths.json`, consumed by the
+PowerShell launchers and `runtime-config.mjs`; explicit environment overrides
+still win. These are trusted local launch settings, never tool arguments.
+The Python worker environment allowlists are unchanged. See [installation](INSTALL.md).
+
 The HTTP server retains its fixed `127.0.0.1:8766` origin, Host/Origin checks,
 session cookie and mutation protections. No public interface, authentication
 service, tunnel, or remote deployment is provided. Do not expose it to the LAN
@@ -54,6 +63,22 @@ The original catalog digest, case IDs, draft IDs/digests, message IDs and source
 identifiers are preserved. Existing saved case content and immutable drafts are
 not rewritten when a new public catalog is installed.
 
+### Send-status reconciliation
+
+`app/send_state.py` identifies a reconciled outcome by both immutable draft ID
+and send state. An accepted reply is a new event even when the original request
+was also accepted. Only a valid receipt with a matching Message-ID and timezone-
+aware acceptance timestamp advances the case to `waiting` and updates
+`last_sent_at`; invalid or uncertain outcomes require attention.
+
+Send completion and `desk_sync_mail` reconcile saved receipts under the mutation
+lease. Older cases without `latest_send_draft_id` use the saved acceptance
+timestamp to distinguish an already-consumed receipt from a stale earlier send.
+The draft marker is backfilled once without reopening deliberately closed or
+reviewed cases. Repeated reconciliation is a no-op. Generic campaign reads use
+the same identity check without writing revisions. This never sends mail,
+changes immutable drafts, or restarts the original deadline clock.
+
 ## Reusable workspace and historical starter pack
 
 The private workspace stores versioned reusable templates, campaigns, target
@@ -92,7 +117,53 @@ it preserves unsaved inputs and never synchronizes mail, sends or files appeals.
 Browser and native schemas share `static/deadline-contracts.mjs`. See
 [deadline behavior and limitations](DEADLINES.md).
 
+## MA response review helper
+
+`app/ma_follow_up.py` combines a reviewed public routing profile with encrypted
+per-case `ma_response_reviews`. The three native operations are also served by
+the guarded HTTP dispatcher; `static/ma-follow-up.js` embeds the editor in the
+case workspace. `desk_get_case` includes its read-only MA projection. Reviews
+and event snapshots commit atomically under the normal mutation lease. No
+original case stages, send receipts, deadlines or routing fields are rewritten.
+Read-only text previews bind the reviewed message/case revision and require
+existing correspondence/immutable-draft tools for any subsequent send.
+`static/ma-contracts.mjs` marks these tools native-only for page registration,
+preserving the 64-tool WebMCP budget. See [MA workflow](MASSACHUSETTS.md).
+
 ## Public request snapshot
+
+### State guides and reviewed public-directory collection
+
+`state_guides.py` exposes read-only available guides from the existing timing
+registry and MA routing profile. `static/state-guides.js` automatically displays
+them when the selected state changes, collapsed by default. No guide is invented
+for an uncovered state. Source refresh never edits bundled legal rules.
+
+`public_sources.py` registers a single reviewed Massachusetts elections directory.
+`desk_refresh_source` uses a fixed HTTPS host/path, standard TLS verification,
+no proxies/cookies/credentials/redirects, 12-second socket timeout, bounded total
+reading and a 2 MB ceiling. HTML is parsed as text only. A complete 351-name
+roster check rejects missing/duplicate sections; malformed/blocking pages never
+replace the last good collection. `desk_import_source` is a separately labeled
+operator-reviewed complete plain-text fallback (200,000-character bound), not
+independent confirmation that the app fetched the official page. Older imported
+check dates cannot replace newer saved checks.
+
+Snapshots, full source text/hash, source-check and server-side collection dates,
+method, contacts and attempt history are encrypted as `source` / `source_snapshot`
+records. Pointer and snapshot save atomically under the normal mutation lease.
+At 100 attempts the source refuses further writes without discarding history.
+The public `ma-municipalities.json` contains names only, not contact observations.
+The paginated municipality lookup never maps town names onto county IDs or
+promotes holder contacts to verified RAOs. No case/mail/routing records change.
+
+`static/settings.js` supplies accessible source controls and safe result/debug
+dialogs, rendered with textContent. Opening Settings only reads saved metadata;
+explicit refresh is separate from reload. `source-contracts.mjs` marks five tools
+native-only to preserve the page-tool budget. The dashboard serves the same
+guarded operations. See [Settings](SETTINGS.md) and [MA workflow](MASSACHUSETTS.md).
+
+### Historical starter snapshot
 
 The historical snapshot remains distinct from local reusable templates and
 campaigns. Refreshing it is a maintainer operation and does not replace locally
@@ -135,6 +206,16 @@ The map is derived from the source checkout's county display geometry. It is a
 workflow navigation illustration, not a new official boundary release. This
 extraction does not collect, normalize, or publish new election boundaries.
 
+`static/map-controls.mjs` is a shared, dependency-free SVG display controller for
+the national and county maps. It owns bounded viewBox navigation, pointer/pinch,
+modifier-wheel and keyboard handling, layer switches and a synchronized legend.
+Old SVG listeners are aborted on redraw; the viewport survives same-scope
+refreshes and selection, but resets when the county state's geometry changes.
+Only boolean layer/legend preferences are kept in browser localStorage under
+versioned per-map keys; no case/mail/identity payload is stored there. Preference
+storage failure does not block the map. The read-only page overview includes the
+display snapshot. No map control calls a backend mutation or changes source assets.
+
 ## County request-status projection
 
 The separate read-only county status projection in `app/county_progress.py`
@@ -164,8 +245,9 @@ cross-process operation lease serializes local mutations; separate 20-minute
 task leases coordinate research outside the app. `Database.put_many` atomically
 commits a returned observation and completion receipt, preserving encryption,
 identity and capacity checks. Workers never hold the database operation lock
-during web research. There is no embedded model, URL-fetch endpoint or auto-send
-path. Native host allowlists remain operator-managed; the shipped example is
+during web research. County research has no embedded model, URL-fetch endpoint or
+auto-send path; the separate public-source collector fetches only its registered
+directory. Native host allowlists remain operator-managed; the shipped example is
 kept consistent with the complete public tool schemas.
 
 ## Public intake is a separate action

@@ -2,6 +2,8 @@
 import {GENERAL_TOOLS} from './general-contracts.mjs';
 import {DEADLINE_TOOLS} from './deadline-contracts.mjs';
 import {CONTACT_TOOLS} from './contact-contracts.mjs';
+import {MA_TOOLS} from './ma-contracts.mjs';
+import {SOURCE_TOOLS} from './source-contracts.mjs';
 const str=max=>({type:'string',maxLength:max});
 const caseId={...str(150),minLength:1};
 const obj=(properties={},required=[])=>({type:'object',properties,required,additionalProperties:false});
@@ -10,6 +12,8 @@ export const TOOLS=[
  ...GENERAL_TOOLS,
  ...DEADLINE_TOOLS,
  ...CONTACT_TOOLS,
+ ...MA_TOOLS,
+ ...SOURCE_TOOLS,
  operation('desk_get_equipment_campaign','Read the private nationwide November 2024 equipment/communications tracker, optionally one state. Includes remaining states, scoped drafts, sources, receipt-derived submission status and verified deadlines. No network.',{state:str(2)},[],true),
  operation('desk_create_equipment_request','Create an idempotent PRIVATE November 2024 equipment/communications draft for an explicit state-held, county or municipality scope. Does not send. This campaign requires separate user approval before sending or fees; do not infer approval from draft creation.',{state:str(2),jurisdiction:str(120),jurisdiction_level:{type:'string',enum:['state','county','municipality']}},['state','jurisdiction','jurisdiction_level']),
  operation('desk_save_equipment_state','Save private nationwide campaign research and category coverage with revision control and dated official-source notes. Does not send, incur fees or establish statewide completeness. Preserve existing sources; not assessed is not missing.',{

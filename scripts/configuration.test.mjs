@@ -20,7 +20,7 @@ const values={ROOT:root.replace(/[\\/]$/,''),NODE:process.execPath,PYTHON:python
 const expected={proton_mail:mailTools,records_desk:deskTools};
 
 function parseConfig(text){
- const result=spawnSync(python,['-E','-s','-S','-c','import json,sys,tomllib; print(json.dumps(tomllib.loads(sys.stdin.read())))'],
+ const result=spawnSync(python,['-E','-s','-S','-c','import json,sys,tomllib; print(json.dumps(tomllib.loads(sys.stdin.buffer.read().decode("utf-8"))))'],
   {input:text,encoding:'utf8',windowsHide:true,shell:false,timeout:10000,env:workerEnvironment()});
  assert.equal(result.status,0,result.stderr||result.error?.message);
  return JSON.parse(result.stdout);
@@ -70,6 +70,14 @@ test('generated configuration retains explicit local paths and existing host per
   assert.deepEqual(Object.keys(server.tools).sort(),(name==='proton_mail'?['proton_send_draft']:['desk_send_email','desk_publish_intake','desk_export_package']).sort());
   for(const policy of Object.values(server.tools))assert.deepEqual(policy,{approval_mode:'prompt'});
  }
+});
+
+test('assistant paths containing apostrophes, spaces and Unicode are valid TOML',()=>{
+ const changed={...values,ROOT:"C:\\Users\\O'Brien Example\\CivicRelay \u00e9",PYTHON:"C:\\Users\\O'Brien Example\\Python313\\python.exe"};
+ const config=parseConfig(buildMcpConfig(template,changed));
+ assert.equal(config.mcp_servers.proton_mail.env.CRM_PROTON_PYTHON,changed.PYTHON);
+ assert.equal(config.mcp_servers.records_desk.cwd,changed.ROOT+'\\app');
+ assertCoverage(config);
 });
 
 test('fresh CLI setup generates parseable complete config and never overwrites an existing file',()=>{

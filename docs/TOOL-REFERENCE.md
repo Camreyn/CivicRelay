@@ -12,7 +12,7 @@ Each native response includes text and structured content. Inspect `ok` and
 independently validates operations. No tool can set credentials, sending policy,
 a server URL, an executable path or a production-data import target.
 
-## Records workflow (53 tools)
+## Records workflow (61 tools)
 
 Schema source: [implementation](../app/static/tool-contracts.mjs).
 
@@ -1708,6 +1708,336 @@ Operation annotation: may write; follow user authorization and host permissions.
     "status"
   ],
   "additionalProperties": false
+}
+```
+
+### `desk_get_ma_follow_up`
+
+Read MA response checklists, per-message reviews, source-dated official state contacts, suggested municipal routing, internal reminders and 90-calendar-day appeal planning watches. Referrals are not fulfillment or municipal coverage. No bodies parsed, network or writes. Supports electronic starter-pack and equipment cases; generic cases remain manual.
+
+Operation annotation: read-only.
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "case_id": {
+      "type": "string",
+      "maxLength": 150,
+      "minLength": 1
+    }
+  },
+  "required": []
+}
+```
+
+### `desk_save_ma_review`
+
+Save a complete PRIVATE MA response review at the current case revision. Requires a fully read, linked incoming message. Provide all fields, preserving the existing review. Distinguish internal forwarding from city/town routing suggestions; agency_reports_not_held is not statewide nonexistence. Response date and basis are operator-reviewed inputs for an unverified appeal estimate. Does not close cases, satisfy legal checkpoints, mark mail reviewed, reroute, send, incur fees or file appeals.
+
+Operation annotation: may write; follow user authorization and host permissions.
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "case_id": {
+      "type": "string",
+      "maxLength": 150,
+      "minLength": 1
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "response_message_id": {
+      "type": "string",
+      "maxLength": 150,
+      "minLength": 1
+    },
+    "response_kind": {
+      "type": "string",
+      "enum": [
+        "internal_referral",
+        "local_referral",
+        "no_records",
+        "partial_response",
+        "records_received",
+        "withheld",
+        "clarification"
+      ]
+    },
+    "summary": {
+      "type": "string",
+      "maxLength": 2500
+    },
+    "categories": {
+      "type": "array",
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "not_addressed",
+              "pending",
+              "partial",
+              "received",
+              "agency_reports_not_held",
+              "withheld",
+              "not_requested"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 1500
+          }
+        },
+        "required": [
+          "key",
+          "status",
+          "note"
+        ]
+      }
+    },
+    "referral_level": {
+      "type": "string",
+      "enum": [
+        "",
+        "state",
+        "municipality",
+        "unknown"
+      ]
+    },
+    "referral_target": {
+      "type": "string",
+      "maxLength": 250
+    },
+    "referral_status": {
+      "type": "string",
+      "enum": [
+        "",
+        "reported_forwarded",
+        "suggested_routing",
+        "receipt_confirmed"
+      ]
+    },
+    "referral_note": {
+      "type": "string",
+      "maxLength": 2500
+    },
+    "response_date": {
+      "type": "string",
+      "maxLength": 10
+    },
+    "date_basis": {
+      "type": "string",
+      "maxLength": 1500
+    },
+    "follow_up_on": {
+      "type": "string",
+      "maxLength": 10
+    }
+  },
+  "required": [
+    "case_id",
+    "revision",
+    "response_message_id",
+    "response_kind",
+    "summary",
+    "categories",
+    "referral_level",
+    "referral_target",
+    "referral_status",
+    "referral_note",
+    "response_date",
+    "date_basis",
+    "follow_up_on"
+  ]
+}
+```
+
+### `desk_preview_ma_follow_up`
+
+Generate read-only MA clarification text from a current saved response review. confirm_referral requires an internal referral; clarify_categories preserves the original scope. Returns the exact reply message ID and saved recipient as an unverified lead. Does not save correspondence or create/send a draft. Use existing save/prepare tools only after reviewing current official routing and exact text.
+
+Operation annotation: read-only.
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "case_id": {
+      "type": "string",
+      "maxLength": 150,
+      "minLength": 1
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "response_message_id": {
+      "type": "string",
+      "maxLength": 150,
+      "minLength": 1
+    },
+    "purpose": {
+      "type": "string",
+      "enum": [
+        "confirm_referral",
+        "clarify_categories"
+      ]
+    }
+  },
+  "required": [
+    "case_id",
+    "revision",
+    "response_message_id",
+    "purpose"
+  ]
+}
+```
+
+### `desk_get_state_guide`
+
+Read available source-linked state guides. The dashboard automatically shows them for the selected state in a collapsible panel, collapsed by default on state changes/reloads (not a popup). Read the guide before state-specific work; absence does not mean no legal rules. Does not fetch sources, sync mail or write.
+
+Operation annotation: read-only.
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "state": {
+      "type": "string",
+      "maxLength": 2
+    }
+  },
+  "required": [
+    "state"
+  ]
+}
+```
+
+### `desk_get_sources`
+
+Read registered public-directory sources, last attempt/success/check dates, collection method, coverage and safe diagnostic history. No network or mailbox access. Refresh controls are in Settings; opening Settings never re-scrapes.
+
+Operation annotation: read-only.
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {},
+  "required": []
+}
+```
+
+### `desk_refresh_source`
+
+Explicitly re-scrape one registered official public directory over bounded HTTPS, then save encrypted source evidence and contacts. No arbitrary URLs, redirects or credentials. Failed/incomplete fetches preserve prior contacts and return ok:false plus safe diagnostics in the RESULT (not a transport failure). Election-office entries are not verified filing RAOs. Never reroutes, creates requests, sends, accepts fees or publishes.
+
+Operation annotation: may write; follow user authorization and host permissions.
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "source_id": {
+      "type": "string",
+      "enum": [
+        "ma-local-election-offices"
+      ]
+    }
+  },
+  "required": [
+    "source_id"
+  ]
+}
+```
+
+### `desk_import_source`
+
+Save reviewed plain text collected from the exact registered official directory when direct download is blocked. Supply the actual source-check date and the complete directory with ## Municipality headings and Email:/Phone: labels. This is an operator attestation, not an independent live website verification. Validates all 351 MA names, retains source text/hash privately and marks reviewed_text_import. Same conservative roles and no send/reroute behavior as refresh.
+
+Operation annotation: may write; follow user authorization and host permissions.
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "source_id": {
+      "type": "string",
+      "enum": [
+        "ma-local-election-offices"
+      ]
+    },
+    "checked_on": {
+      "type": "string",
+      "maxLength": 10
+    },
+    "text": {
+      "type": "string",
+      "maxLength": 200000,
+      "minLength": 1
+    }
+  },
+  "required": [
+    "source_id",
+    "checked_on",
+    "text"
+  ]
+}
+```
+
+### `desk_get_municipal_contacts`
+
+Read saved MA city/town election-office contacts (not counties) with source URL, check/collection dates, collection method, gaps and unverified-RAO status. Pagination defaults to 50, maximum 100. Filter municipality names with query. Coverage includes uncollected municipalities; contact collection is not request coverage or send authority. No network.
+
+Operation annotation: read-only.
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "state": {
+      "type": "string",
+      "enum": [
+        "MA"
+      ]
+    },
+    "query": {
+      "type": "string",
+      "maxLength": 100
+    },
+    "offset": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 351
+    },
+    "limit": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100
+    }
+  },
+  "required": [
+    "state"
+  ]
 }
 ```
 

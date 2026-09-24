@@ -1,9 +1,11 @@
 param([switch]$NoBrowser)
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'scripts\runtime-paths.ps1')
+Use-CivicRelayRuntimePaths $PSScriptRoot
 $server = Join-Path $PSScriptRoot 'app\server.py'
 $python = if ($env:CRM_PROTON_PYTHON) { $env:CRM_PROTON_PYTHON } else { 'C:\Python313\python.exe' }
 $pythonw = Join-Path (Split-Path -Parent $python) 'pythonw.exe'
-if (-not [IO.Path]::IsPathRooted($python) -or -not (Test-Path -LiteralPath $pythonw -PathType Leaf)) { throw 'Configure CRM_PROTON_PYTHON to an absolute Python 3.13 path with Tkinter/pythonw. See docs/SETUP.md.' }
+if (-not (Test-CivicRelayExecutablePath $python) -or -not (Test-Path -LiteralPath $pythonw -PathType Leaf)) { throw 'Run Install CivicRelay.cmd first, or configure an absolute Python 3.13 path with Tkinter/pythonw. See docs/INSTALL.md.' }
 $url = 'http://127.0.0.1:8766/'
 $hasher = [Security.Cryptography.SHA256]::Create()
 try { $installationId = -join ($hasher.ComputeHash([Text.Encoding]::UTF8.GetBytes((Resolve-Path -LiteralPath $PSScriptRoot).Path.ToLowerInvariant())) | ForEach-Object { $_.ToString('x2') }) } finally { $hasher.Dispose() }
