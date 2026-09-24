@@ -57,6 +57,13 @@ screenshots. A fixture's “send call” means a call to the fake local handler,
 not an email. Tests use temporary profiles for worker mail operations; do not
 replace those fixtures with the operator's real account.
 
+## Windows test startup
+
+Windows PowerShell 5.1 validation inputs are batched within one disposable test
+process to avoid repeated cold starts on hosted runners. Each test process has
+a bounded 60-second startup/execution budget. This does not skip validation,
+retry failed checks, or change the installer's or mail connector's timeouts.
+
 ## Reply send-status regression
 
 `app/test_send_reconciliation.py` covers consecutive accepted messages, recovery

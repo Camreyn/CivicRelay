@@ -21,7 +21,9 @@ function cleanup(directory){
 function ps(code,directory=root){
  const source=`$ErrorActionPreference='Stop'\n. ${q(path.join(root,'scripts/install-support.ps1'))}\n$root=${q(directory)}\n${code}`;
  const result=spawnSync(shell,['-NoProfile','-ExecutionPolicy','Bypass','-EncodedCommand',Buffer.from(source,'utf16le').toString('base64')],
-  {cwd:directory,encoding:'utf8',windowsHide:true,shell:false,timeout:30000,
+  // Hosted Windows runners can take over 30 seconds on the first 5.1 launch.
+  // This bounds only the synthetic test process, not application/send timeouts.
+  {cwd:directory,encoding:'utf8',windowsHide:true,shell:false,timeout:60000,
    env:{...workerEnvironment(),OS:'Windows_NT',Path:process.env.Path||process.env.PATH,ProgramFiles:process.env.ProgramFiles,
     ComSpec:path.join(process.env.SystemRoot||'C:\\Windows','System32/cmd.exe'),PATHEXT:'.COM;.EXE;.BAT;.CMD',
     CRM_PROTON_PYTHON:'',RECORDS_DESK_NODE:'',RECORDS_DESK_GH:''}});
@@ -72,15 +74,26 @@ test('runtime paths reject malformed/unknown/relative/control/linked configurati
  try{
   fs.mkdirSync(path.join(directory,'.local'));
   const file=path.join(directory,'.local/runtime-paths.json');
-  for(const config of [null,[],{schema_version:2},{schema_version:'1'},{schema_version:true},{schema_version:1,password:'not a setting'},{schema_version:1,python:'python.exe'},
+  const invalid=[null,[],{schema_version:2},{schema_version:'1'},{schema_version:true},{schema_version:1,password:'not a setting'},{schema_version:1,python:'python.exe'},
    {schema_version:1,node:'C:node.exe'},{schema_version:1,gh:'\\\\server\\share\\gh.exe'},
-   {schema_version:1,python:'C:\\bad\npython.exe'},{schema_version:1,node:'C:\\node.cmd'}]){
+   {schema_version:1,python:'C:\\bad\npython.exe'},{schema_version:1,node:'C:\\node.cmd'}];
+  for(const config of invalid){
    fs.writeFileSync(file,JSON.stringify(config));assert.throws(()=>readRuntimePaths(directory));
-   const result=ps(`$failed=$false; try {$null=Read-CivicRelayRuntimePaths $root} catch {$failed=$true}; ${emit('@{failed=$failed}')}`,directory);
-   assert.equal(result.failed,true,JSON.stringify(config));
   }
   fs.writeFileSync(file,'not JSON');assert.throws(()=>readRuntimePaths(directory),/JSON/);
   fs.writeFileSync(file,' '.repeat(8193));assert.throws(()=>readRuntimePaths(directory),/Invalid/);
+  // Exercise every rejection in the real 5.1 parser, but pay its cold-start cost
+  // once. Inputs are data in a disposable fixture, never executable script text.
+  const cases=[...invalid.map(value=>JSON.stringify(value)),'not JSON',' '.repeat(8193)];
+  fs.writeFileSync(path.join(directory,'invalid-runtime-cases.json'),JSON.stringify(cases));
+  const rejected=ps(`
+   $cases=Get-Content -LiteralPath (Join-Path $root 'invalid-runtime-cases.json') -Raw | ConvertFrom-Json
+   $results=@(foreach($value in $cases) {
+    [IO.File]::WriteAllText((Join-Path $root '.local\\runtime-paths.json'),[string]$value)
+    $failed=$false; try {$null=Read-CivicRelayRuntimePaths $root} catch {$failed=$true}; $failed
+   })
+   ${emit('@{rejected=$results}')}`,directory);
+  assert.deepEqual(rejected.rejected,cases.map(()=>true),'PowerShell must reject every invalid fixture');
   fs.rmSync(file);fs.rmdirSync(path.join(directory,'.local'));
   const target=path.join(directory,'synthetic-target');fs.mkdirSync(target);fs.symlinkSync(target,path.join(directory,'.local'),'junction');
   assert.throws(()=>readRuntimePaths(directory),/linked/);
