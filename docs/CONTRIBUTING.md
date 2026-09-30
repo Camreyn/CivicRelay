@@ -26,6 +26,8 @@ npm.cmd test
 Review the generated reference, rather than hand-editing it. If UI behavior
 changes, also run `npm.cmd run test:browser`. Do not use screenshots of real
 correspondence as fixtures, documentation images or bug-report attachments.
+For README images, use the [isolated screenshot workflow](SCREENSHOTS.md) and
+review each image before updating its exact-byte publication allowlist.
 
 Snapshot refresh is a separate reviewed action; see [architecture](ARCHITECTURE.md).
 Do not update the expected digest just to make a test pass. Preserve source

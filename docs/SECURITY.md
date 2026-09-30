@@ -28,7 +28,8 @@ mail store. Do not set `LOCALAPPDATA` to a project directory.
 ## Publication checklist
 
 1. Run `npm.cmd run publish:check` from the standalone Git repository. It checks
-   Git-visible paths against an allowlist, rejects linked/binary inputs, verifies
+   Git-visible paths against an allowlist, rejects linked/binary inputs except
+   the three exact hash-pinned [fictional demo screenshots](SCREENSHOTS.md), verifies
    common private paths are ignored, checks limited token/key markers in working
    files and staged blobs, and verifies the public catalog/form identity.
 2. Review `git status --short` and the entire proposed staged diff. The automated
