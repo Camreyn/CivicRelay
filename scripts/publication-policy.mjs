@@ -1,11 +1,14 @@
 // Narrow publication guard, not a general secret scanner or privacy review.
 import path from 'node:path';
+import {createHash} from 'node:crypto';
+import {REVIEWED_SCREENSHOTS} from './reviewed-screenshots.mjs';
 const roots=new Set(['.gitignore','.gitattributes','AGENTS.md','README.md','LICENSE','NOTICE','SECURITY.md',
   'package.json','package-lock.json','runtime-config.mjs','Open CivicRelay.cmd','Open Records Desk.cmd',
   'Open-Records-Desk.ps1','Open-Proton-Setup.ps1','Install CivicRelay.cmd','Check CivicRelay.cmd','Open Proton Setup.cmd']);
 const deny=/(^|\/)(\.private|\.local|\.codex|node_modules|collections|exports|attachments|quarantine|__pycache__)(\/|$)|\.(dpapi|sqlite\w*|db|eml|mbox|pst|ost|pem|key|p12|pfx|log|png|zip|csv|pdf)$/i;
 const allowed=/^(app|connector|scripts)\/[\w./-]+\.(py|mjs|js|html|css|json|ps1)$|^docs\/[\w./-]+\.(md|toml)$|^data\/(catalog\.json|snapshot-provenance\.json|records-response\.yml)$|^\.github\/workflows\/ci\.yml$/;
 export function assertPublicPath(file) {
+  if(Object.hasOwn(REVIEWED_SCREENSHOTS,file)) return;
   if(path.posix.normalize(file)!==file||file.includes('\\')||file.startsWith('../')||path.posix.isAbsolute(file)||deny.test(file)||(!roots.has(file)&&!allowed.test(file)))
     throw Error('Unexpected or private Git-visible path: '+file);
 }
@@ -20,6 +23,11 @@ export function sensitiveMarkers(text) {
 }
 export function validatePublicBytes(file,bytes) {
   assertPublicPath(file);
+  if(Object.hasOwn(REVIEWED_SCREENSHOTS,file)) {
+    if(bytes.length>2_000_000||createHash('sha256').update(bytes).digest('hex')!==REVIEWED_SCREENSHOTS[file])
+      throw Error('Screenshot bytes changed; repeat the documented privacy review: '+file);
+    return;
+  }
   if(bytes.length>2_000_000||bytes.includes(0)) throw Error('Oversized or binary publication input: '+file);
   let value;
   try {value=new TextDecoder('utf-8',{fatal:true}).decode(bytes);} catch {throw Error('Expected UTF-8 source text: '+file);}

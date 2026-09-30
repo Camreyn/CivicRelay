@@ -57,6 +57,12 @@ screenshots. A fixture's “send call” means a call to the fake local handler,
 not an email. Tests use temporary profiles for worker mail operations; do not
 replace those fixtures with the operator's real account.
 
+The separate [README screenshot fixture](SCREENSHOTS.md) serves the real UI with
+invented data, disposable storage, a read-only operation allowlist and blocked
+outbound transports. Its three manually reviewed documentation images are the
+only binary publication exceptions, pinned by exact hashes. Unit tests reject
+changed/unlisted images and check JPEG metadata; they do not detect visual PII.
+
 ## Windows test startup
 
 Windows PowerShell 5.1 validation inputs are batched within one disposable test

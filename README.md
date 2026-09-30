@@ -25,6 +25,38 @@ These additions are not in the older v0.6.1 release archive. Use the
 [current main-branch source ZIP](https://github.com/Camreyn/CivicRelay/archive/refs/heads/main.zip)
 or a current clone for the features documented below.
 
+## Screenshots
+
+These are real views of the app running in an **isolated, fictional demo**.
+All requests, replies, receipt counts and statuses below are sample data—not
+actual agency activity. No personal details, real emails, credentials or private
+records are shown. State and county names come from the bundled public map.
+
+### National request map
+
+See request progress by state, switch map layers, zoom/pan, and open a state's
+workspace. The example below uses the equipment-and-communications workflow;
+the app also supports your own request topics and campaigns.
+
+![CivicRelay national map with fictional state request statuses, map controls and an example Arizona workspace](docs/images/demo-national-overview.jpg)
+
+### County-by-county progress
+
+Keep each county's requests separate, including counties with no request yet.
+Green means a new reply to review, not a completed request.
+
+![CivicRelay Michigan county map and list showing fictional contact-needed, awaiting-reply, new-reply, partial-response and received-records statuses](docs/images/demo-county-progress.jpg)
+
+### Reusable request templates
+
+Create templates for your own public-records topics, with editable wording,
+placeholders, version history, previews and shareable definitions. This example
+requests park-maintenance contracts rather than election records.
+
+![CivicRelay reusable park-maintenance request template with topic, jurisdiction, date-range and signature placeholders](docs/images/demo-request-template.jpg)
+
+See [how these screenshots are safely maintained](docs/SCREENSHOTS.md).
+
 ## What it does
 
 - Shows 50 states plus DC, with request status and a per-case workspace.
@@ -392,7 +424,8 @@ run against another person's mailbox. Do not run two dashboards on port 8766.
 
 ## Git and publication
 
-This repository contains versioned source and public templates only. No remote
+This repository contains versioned source, public templates and reviewed fictional
+demo screenshots only. No remote
 service is required for local operation. Before committing or publishing, run
 `npm.cmd run publish:check`, review `git status --short`, and review the complete
 staged diff. Never force-add ignored files. The check is a path/schema guard,
