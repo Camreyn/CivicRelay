@@ -15,7 +15,7 @@
     "test:node": "node --test app/tools.test.mjs app/page-tools.test.mjs app/workspace.test.mjs app/send-controls.test.mjs app/map-controls.test.mjs connector/server.test.mjs scripts/standalone.test.mjs scripts/configuration.test.mjs scripts/publication.test.mjs scripts/install.test.mjs",
     "test:install": "node --test scripts/install.test.mjs",
     "test:python": "node scripts/test-python.mjs",
-    "test:browser": "node app/send-flow.browser.test.mjs && node app/equipment.browser.test.mjs && node app/general.browser.test.mjs && node app/deadlines.browser.test.mjs && node app/contacts.browser.test.mjs && node app/county-progress.browser.test.mjs && node app/ma-follow-up.browser.test.mjs && node app/settings.browser.test.mjs && node app/sources.browser.test.mjs && node app/mail-privacy.browser.test.mjs && node app/mail-sync.browser.test.mjs",
+    "test:browser": "node app/send-flow.browser.test.mjs && node app/equipment.browser.test.mjs && node app/general.browser.test.mjs && node app/deadlines.browser.test.mjs && node app/contacts.browser.test.mjs && node app/county-progress.browser.test.mjs && node app/ma-follow-up.browser.test.mjs && node app/settings.browser.test.mjs && node app/sources.browser.test.mjs && node app/mail-privacy.browser.test.mjs && node app/mail-sync.browser.test.mjs && node app/sending-limits.browser.test.mjs",
     "test:live-readonly": "node app/live-send-readonly-smoke.mjs",
     "snapshot:refresh": "node scripts/refresh-public-snapshot.mjs",
     "docs:generate": "node scripts/generate-tool-reference.mjs",

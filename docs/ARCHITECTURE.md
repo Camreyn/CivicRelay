@@ -63,6 +63,29 @@ The original catalog digest, case IDs, draft IDs/digests, message IDs and source
 identifiers are preserved. Existing saved case content and immutable drafts are
 not rewritten when a new public catalog is installed.
 
+### Sending policy and atomic attempt accounting
+
+The connector's existing `drafts.sqlite3` also holds a singleton `send_limits`
+row, created only on the first explicit policy save. Its DPAPI envelope binds
+the enrolled identity, schema version, revision, cap, interval and change time.
+Read-only access to an older database returns 10/60 defaults without migrating
+or creating private files. Malformed saved policies fail closed. A reviewed
+same-identity v1-to-v2 enrollment retains its policy; other identities are rejected.
+
+`Store.save_send_limits` and `Store.claim_send` use the same SQLite
+`BEGIN IMMEDIATE` lock. The final claim reads the latest policy inside the
+transaction, not a caller-supplied preflight snapshot. Reads of policy and ledger
+use one read transaction. Neither policy changes nor default restoration alter
+drafts, receipts or attempted timestamps. Lowering below current usage waits for
+enough attempts to expire from the fixed rolling-24-hour window.
+
+`app/sending_limits.py` exposes revision-checked get/save operations through the
+normal service dispatcher; the getter is read-only. Schemas are native/HTTP only
+to preserve the 64-tool page budget. `static/sending-limits.js` preserves unsaved
+edits and their original revision across tab reopening; explicit reload discards
+them. No remote connection, credentials, scheduler or sending-enable action is
+part of this feature. See [sending limits](SENDING-LIMITS.md).
+
 ### Mail privacy boundary and local cleanup
 
 `connector/mail_scope.py` is shared by desk IMAP reads and lower-level connector

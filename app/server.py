@@ -69,6 +69,8 @@ class Handler(BaseHTTPRequestHandler):
                '/state-guides.css':('state-guides.css','text/css; charset=utf-8'),
                '/settings.js':('settings.js','text/javascript; charset=utf-8'),
                '/mail-privacy.js':('mail-privacy.js','text/javascript; charset=utf-8'),
+               '/sending-limits.js':('sending-limits.js','text/javascript; charset=utf-8'),
+               '/sending-limit-contracts.mjs':('sending-limit-contracts.mjs','text/javascript; charset=utf-8'),
                '/mail-privacy-contracts.mjs':('mail-privacy-contracts.mjs','text/javascript; charset=utf-8'),
                '/settings.css':('settings.css','text/css; charset=utf-8'),
                '/contacts.js':('contacts.js','text/javascript; charset=utf-8'),

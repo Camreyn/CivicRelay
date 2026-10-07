@@ -9,6 +9,7 @@ const origin = 'http://settings.test';
 const assets = new Map([
   ['/settings.js', ['text/javascript', await readFile(new URL('./static/settings.js', import.meta.url), 'utf8')]],
   ['/mail-privacy.js', ['text/javascript', await readFile(new URL('./static/mail-privacy.js', import.meta.url), 'utf8')]],
+  ['/sending-limits.js', ['text/javascript', await readFile(new URL('./static/sending-limits.js', import.meta.url), 'utf8')]],
   ['/settings.css', ['text/css', await readFile(new URL('./static/settings.css', import.meta.url), 'utf8')]],
   ['/style.css', ['text/css', await readFile(new URL('./static/style.css', import.meta.url), 'utf8')]],
 ]);
@@ -58,7 +59,7 @@ try {
   assert.equal(await settings.evaluate(node=>node.open),true);
   assert.equal(await page.evaluate(()=>window.calls.length),1);
   assert.equal(await source.locator('.settings-import').evaluate(node=>node.open),false);
-  assert.equal(await settings.locator('a').count(),1);
+  assert.equal(await settings.locator('a:visible').count(),1);
   assert.equal(await source.getByRole('link').getAttribute('rel'),'noopener noreferrer');
   assert.match(await source.innerText(),/351 of 351 expected entries/);
   assert.match(await source.innerText(),/Official source checked on\s+2026-09-01/);

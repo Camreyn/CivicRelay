@@ -62,3 +62,9 @@ delete, copy, or hand-edit private stores to work around the guard.
 `proton_status` includes the same sanitized fields and still reports send enablement and the existing quota window only after validated local settings are loaded. Neither interface includes a password, certificate pin, or decrypted credential material. `secure_store.records_root()` exposes the matching records-store root for dashboard/storage integration; it is not an account-selection argument.
 
 No configuration action authorizes delivery, mailbox synchronization, fees, publication, automatic retry, or a different routing channel. The existing loopback-only transport, environment allowlist, TLS pins, send enablement, quota, and uncertain-outcome locks remain in force.
+
+The current source adds a separate **Settings → Sending limits** policy editor.
+It requires enrollment but never accepts credentials or changes send enablement.
+Saved policy and attempt history survive a same-account credential refresh;
+do not re-enroll or delete private files to change the cap. See
+[sending limits](SENDING-LIMITS.md).

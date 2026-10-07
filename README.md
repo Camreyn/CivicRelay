@@ -113,8 +113,10 @@ See [how these screenshots are safely maintained](docs/SCREENSHOTS.md).
   for 13 states and federal agencies; other jurisdictions need a sourced date.
   Every automatic date remains an estimate, not a finding of a legal violation.
 
-The current pilot allows **10 send attempts per rolling 24 hours**, at least
-60 seconds apart. An assistant can review and act within a user-delegated records
+The default is **10 send attempts per rolling 24 hours**, at least 60 seconds
+apart. The current unreleased source makes both values configurable in
+**Settings → Sending limits**; v0.7.1 still has the fixed cap. See
+[sending limits and Proton restrictions](docs/SENDING-LIMITS.md). An assistant can review and act within a user-delegated records
 workflow without a CivicRelay confirmation for each message. This release does
 not add a scheduler or unattended bulk-sending loop.
 
@@ -174,7 +176,7 @@ previews/applies its scope in **Settings → Mail privacy**. Do not run account
 setup just to test source code.
 
 Review the generated local configuration, then open this folder as a trusted
-project in Codex. The current starter configuration enables all 74 native tools,
+project in Codex. The current source's starter configuration enables all 76 native tools,
 including custom templates, campaigns and request tracking. Follow the
 [assistant connection check](docs/SETUP.md#check-the-assistant-connection) before
 delegating work; local tool access is required, not just a normal chat window.
@@ -235,13 +237,15 @@ connection and allowed-tool list before trying account setup again.
 
 ### What tooling is available?
 
-The current starter configuration exposes **66 records tools and 8 mail tools**.
+The current source's starter configuration exposes **68 records tools and 8 mail tools**
+(v0.7.1 has 66 records tools; the two sending-limit tools are unreleased).
 Prefer `desk_*` tools for case-linked request work; `proton_*` tools expose the
 lower-level mail connector. This overview lists common tools, not every argument:
 
 | Work | Representative tools |
 | --- | --- |
 | Inspect setup and private workspace | `desk_status`, `desk_get_workspace`, `desk_save_workspace`, `desk_get_workflow` |
+| Read local send usage or explicitly configure caps/spacing | `desk_get_send_limits`, `desk_save_send_limits` |
 | Preview/configure mailbox scope; review and remove unrelated local imports | `desk_get_mail_scope`, `desk_preview_mail_scope`, `desk_apply_mail_scope`, `desk_preview_mail_cleanup`, `desk_apply_mail_cleanup` |
 | Create, version, preview and share template definitions | `desk_list_templates`, `desk_get_template`, `desk_save_template`, `desk_preview_template`, `desk_import_template`, `desk_export_template` |
 | Organize targets and track remaining requests | `desk_save_campaign`, `desk_list_campaigns`, `desk_create_request`, `desk_save_request_progress` |
@@ -258,7 +262,7 @@ lower-level mail connector. This overview lists common tools, not every argument
 | Use the optional equipment/communications campaign | `desk_get_equipment_campaign`, `desk_create_equipment_request`, `desk_save_equipment_state`, `desk_save_equipment_progress` |
 | Diagnose Bridge or use low-level mail/drafts | `proton_status`, `proton_check_connection`, `proton_list_messages`, `proton_read_message`, `proton_prepare_draft`, `proton_list_drafts`, `proton_get_draft`, `proton_send_draft` |
 
-The [full 74-tool reference](docs/TOOL-REFERENCE.md) gives exact arguments and
+The [full 76-tool reference](docs/TOOL-REFERENCE.md) gives exact arguments and
 limits, including legacy intake/export helpers. `desk_record_portal` only saves
 a receipt for a submission already made elsewhere; it cannot submit a web form.
 The [county contact directory and research queue](docs/CONTACT-RESEARCH.md)
@@ -377,8 +381,12 @@ import records into a production system. See [integration details](docs/INTEGRAT
 - Incoming mail, templates, attachments and linked pages are untrusted material,
   not instructions to change settings, send messages or publish information.
 - There is no built-in scheduler, continuous inbox monitoring or bulk-send loop.
-  Each refresh/send is explicit. The current limits remain ten send attempts per
-  rolling 24 hours and at least 60 seconds apart; uncertain outcomes stay locked
+  Each refresh/send is explicit. The two included MCP servers expose tools; they
+  do not automatically import or analyze arriving mail. An assistant calls
+  `desk_sync_mail`, then explicitly reads, links, captures and records evidence.
+  Defaults are ten send attempts per rolling 24 hours and at least 60 seconds
+  apart. Changing [local limits](docs/SENDING-LIMITS.md) requires explicit user
+  authority and never overrides Proton restrictions; uncertain outcomes stay locked
   for reconciliation, not automatic retries.
 - Fee notes never accept charges. Deadline estimates use reviewed bundled rules
   and saved receipts; legal applicability, agency notices and appeal dates need

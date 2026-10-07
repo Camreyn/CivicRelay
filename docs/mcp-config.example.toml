@@ -38,6 +38,7 @@ enabled_tools = [
   'desk_get_workflow', 'desk_list_messages', 'desk_get_intake',
   'desk_get_mail_scope', 'desk_preview_mail_scope', 'desk_apply_mail_scope',
   'desk_preview_mail_cleanup', 'desk_apply_mail_cleanup',
+  'desk_get_send_limits', 'desk_save_send_limits',
   'desk_get_workspace', 'desk_save_workspace', 'desk_list_templates',
   'desk_get_template', 'desk_save_template', 'desk_preview_template',
   'desk_export_template', 'desk_import_template', 'desk_list_campaigns',

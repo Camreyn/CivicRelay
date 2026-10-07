@@ -56,8 +56,10 @@ while diagnosing it.
   within the user's authorization. Preparing a draft does not send it.
 - v2 drafts also bind the reviewed display name and local profile ID. Existing
   v1 sender identity, digest, receipts, and send accounting remain unchanged.
-- Existing protection remains: at most ten attempts per rolling 24 hours and at
-  least 60 seconds between attempts. Failed/uncertain attempts can count. A
+- Sending defaults remain ten attempts per rolling 24 hours and at least 60
+  seconds between attempts. Explicit local policy edits can set 1–1,000 attempts
+  and 1–3,600 seconds; they never reset history or override Proton restrictions.
+  An ordinary send request is not authority to raise limits. Failed/uncertain attempts can count. A
   countdown only refreshes eligibility; it never schedules or triggers a send.
 - Bridge acceptance is not proof of recipient delivery. An uncertain outcome is
   not safely retryable. Inspect the saved receipt and Proton Sent before deciding
@@ -160,7 +162,9 @@ distinct from a direct fetch; it cannot independently authenticate pasted text.
 Complete source snapshots and attempt history stay encrypted outside Git.
 Directory entries never verify designated RAOs or mutate mail, case routing,
 submission status, fees or deadlines. Settings cannot change credentials,
-assistant-host permissions, sending safeguards or TLS trust. See [Settings](SETTINGS.md).
+assistant-host permissions, send enablement or TLS trust. Its separate Sending
+limits tab edits only the bounded local attempt policy with explicit user
+authority. See [Settings](SETTINGS.md) and [sending limits](SENDING-LIMITS.md).
 
 ## Backups and another PC
 

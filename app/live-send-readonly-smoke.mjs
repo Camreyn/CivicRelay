@@ -36,7 +36,7 @@ try {
   const status = await control.locator('.send-status').innerText();
   const quota = await control.locator('.help').innerText();
   assert.match(status, /Ready for your review|Waiting period|Daily sending limit/);
-  assert.match(quota, /\d+ of 10 send attempts available/);
+  assert.match(quota, /\d+ of \d+ send attempts available/);
   assert.equal(await control.locator('.send-error').isVisible(), false);
   assert.deepEqual(errors, []); assert.deepEqual(blocked, []);
   assert.deepEqual(operations, ['desk_get_case', 'desk_status']);

@@ -114,6 +114,10 @@ The quota counts attempts, not only successful deliveries. The countdown never
 queues or sends a message when it expires. Duplicate/uncertain drafts remain
 protected against automatic retries.
 
+The current unreleased source adds **Settings → Sending limits** to configure
+the local attempt cap and spacing. Defaults stay 10 attempts per rolling 24 hours
+and 60 seconds apart; Proton restrictions still apply. See [sending limits](SENDING-LIMITS.md).
+
 ## Review replies and follow up
 
 Use **Check for replies** to synchronize a bounded page of INBOX/Sent headers.

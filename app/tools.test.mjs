@@ -8,8 +8,8 @@ import {Client} from '@modelcontextprotocol/client';
 import {StdioClientTransport} from '@modelcontextprotocol/client/stdio';
 import {TOOLS} from './tools.mjs';
 const directory=path.dirname(fileURLToPath(import.meta.url));
-test('66 narrow schemas have no credential, shell, path, host, or transport policy override',()=>{
- assert.equal(TOOLS.length,66);
+test('68 narrow schemas have no credential, shell, path, host, or transport policy override',()=>{
+ assert.equal(TOOLS.length,68);
  for(const t of TOOLS){assert.equal(t.schema.additionalProperties,false);for(const key of Object.keys(t.schema.properties))assert.doesNotMatch(key,/password|command|path|host|approve|confirm_send/);}
  for(const name of ['desk_send_email','desk_publish_intake']){const t=TOOLS.find(t=>t.name===name);assert.equal(t.readOnly,false);assert.ok(t.schema.required.includes('expected_digest'));assert.equal(Object.hasOwn(t.schema.properties,'confirmation'),false);}
 });
@@ -21,6 +21,8 @@ for(const negotiationMode of ['legacy','auto'])test(`actual MCP STDIO handshake 
   const status=await client.callTool({name:'desk_status',arguments:{}});assert.equal(status.structuredContent.ok,true);assert.equal(status.structuredContent.result.connector.configured,false);
   assert.equal(status.structuredContent.result.requires_desktop_confirmation,false);
   const scope=await client.callTool({name:'desk_get_mail_scope',arguments:{}});assert.equal(scope.structuredContent.ok,true);assert.equal(scope.structuredContent.result.scope.configured,false);assert.equal(scope.structuredContent.result.network_accessed,false);
+  const limits=await client.callTool({name:'desk_get_send_limits',arguments:{}});assert.equal(limits.structuredContent.ok,true);assert.equal(limits.structuredContent.result.configured,false);assert.equal(limits.structuredContent.result.max_attempts_per_24h,10);
+  const blockedLimits=await client.callTool({name:'desk_save_send_limits',arguments:{revision:0,max_attempts_per_24h:25,minimum_interval_seconds:30}});assert.equal(blockedLimits.structuredContent.ok,false);assert.match(blockedLimits.structuredContent.error,/Not configured/);
   const blocked=await client.callTool({name:'desk_sync_mail',arguments:{}});assert.equal(blocked.structuredContent.ok,false);assert.match(blocked.structuredContent.error,/mailbox scope/);
   const guide=await client.callTool({name:'desk_get_state_guide',arguments:{state:'MA'}});assert.equal(guide.structuredContent.result.display.default_collapsed,true);assert.equal(guide.structuredContent.result.guides.length,2);
   const sources=await client.callTool({name:'desk_get_sources',arguments:{}});assert.equal(sources.structuredContent.result.network_accessed,false);assert.equal(sources.structuredContent.result.sources[0].record_count,0);

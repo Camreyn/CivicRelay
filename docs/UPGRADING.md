@@ -1,5 +1,13 @@
 # Updating CivicRelay to 0.7.1
 
+**Unreleased source addition:** configurable **Settings → Sending limits** and
+two native tools, `desk_get_send_limits` and `desk_save_send_limits`, are not in
+the v0.7.1 ZIP. Once installing a version containing that feature, follow the
+same stop/update/install/restart process below and review those two allowlist
+entries. There are no new dependencies or credential changes; 10/60 defaults and
+all attempts remain until an explicit policy edit. The current source has 68
+records tools plus 8 mail tools. See [sending-limit instructions](SENDING-LIMITS.md).
+
 This release contains the guided installer and the mailbox-privacy fix. The old
 0.6.1 release ZIP does not. Updating code alone neither deletes accidental mail
 imports nor chooses a new mailbox scope.
@@ -82,7 +90,7 @@ desk_apply_mail_cleanup
 
 See the complete [configuration template](mcp-config.example.toml) and
 [assistant configuration upgrade](SETUP.md#upgrading-an-existing-assistant-configuration).
-The new total is 66 records tools plus 8 mail tools; the WebMCP budget stays 64.
+The v0.7.1 total is 66 records tools plus 8 mail tools; the WebMCP budget stays 64.
 Low-level `proton_read_message` additionally requires `mail_scope_id` from the
 latest `proton_list_messages` result. Restart connections to load the new schema.
 
