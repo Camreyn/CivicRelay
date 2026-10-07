@@ -15,7 +15,7 @@ import uuid
 import bridge
 from secure_store import ConnectorError, SendPreflightError, Store, canonical
 
-VERSION = "0.7.0"
+VERSION = "0.7.1"
 PROJECT_EMAIL = "CivicResultMaps@proton.me"
 LEGACY_DISPLAY_NAME = "CivicResultMaps"
 FOLDERS = ("INBOX", "Sent")

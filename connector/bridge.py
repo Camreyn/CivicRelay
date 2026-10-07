@@ -136,25 +136,51 @@ def headers(message) -> dict:
             ("From", "To", "Cc", "Subject", "Date", "Message-ID", "In-Reply-To")}
 
 
+def search_uids(connection, after_uid: int, before_uid: int | None = None) -> list[int]:
+    """Search only a nonempty, forward UID window after a scope-checked SELECT.
+
+    Gluon/Bridge can answer NO to UID SEARCH on an empty label. SELECT metadata
+    lets both interfaces avoid that command without swallowing genuine errors.
+    A numeric UIDNEXT fence also avoids IMAP's reversed N:* range semantics.
+    Arrivals after SELECT are left for the next explicit check; no cursor is
+    advanced to the fence, and no history/scope is broadened.
+    """
+    if (type(after_uid) is not int or not 0 <= after_uid <= 4294967295
+            or (before_uid is not None and (type(before_uid) is not int or not 1 <= before_uid <= 4294967295))):
+        raise ConnectorError("Invalid message-search boundary.")
+    metadata = {}
+    for name, minimum in (("EXISTS", 0), ("UIDNEXT", 1)):
+        _, values = connection.response(name)
+        if (not isinstance(values, (list, tuple)) or len(values) != 1
+                or not isinstance(values[0], bytes) or not re.fullmatch(rb"[0-9]{1,10}", values[0])
+                or not minimum <= int(values[0]) <= 4294967295):
+            raise ConnectorError(f"Bridge did not supply valid {name} metadata for the selected mail folder. No message search was attempted.")
+        metadata[name] = int(values[0])
+    upper = metadata['UIDNEXT'] - 1
+    if before_uid is not None:
+        upper = min(upper, before_uid - 1)
+    if metadata['EXISTS'] == 0 or after_uid >= upper:
+        return []
+    status, data = connection.uid("search", None, "UID", f"{after_uid + 1}:{upper}")
+    if status != "OK":
+        raise ConnectorError("Bridge could not search the selected mail folder. Check Bridge and try again; no broader mailbox search was attempted.")
+    if not isinstance(data, (list, tuple)) or len(data) != 1 or not isinstance(data[0], bytes):
+        raise ConnectorError("Bridge returned an invalid message-search response.")
+    if len(data[0]) > MAX_MESSAGE:
+        raise ConnectorError("Bridge message-search result exceeded the safe size limit.")
+    identifiers = data[0].split()
+    if any(not re.fullmatch(rb"[0-9]{1,10}", uid) or not 1 <= int(uid) <= 4294967295 for uid in identifiers):
+        raise ConnectorError("Bridge returned invalid message identifiers.")
+    # Independently fence every result, even if a server returns unrelated UIDs.
+    return sorted({int(uid) for uid in identifiers if after_uid < int(uid) <= upper})
+
+
 def list_messages(settings: dict, folder: str, limit: int, before_uid: int | None, scope=None) -> dict:
     import mail_scope
     target = mail_scope.entry(scope or {}, folder)
     with imap_connection(settings) as connection:
         validity = mail_scope.select(connection, scope, folder)
-        minimum = target['minimum_uid']
-        if before_uid is not None and before_uid <= minimum + 1:
-            ids = []
-        else:
-            criteria = ("UID", f"{minimum + 1}:{before_uid - 1 if before_uid else '*'}")
-            status, data = connection.uid("search", None, *criteria)
-            if status != "OK" or not data or len(data[0]) > MAX_MESSAGE:
-                raise ConnectorError("Bridge search failed or exceeded the result limit.")
-            ids = data[0].split()
-            if any(not re.fullmatch(rb"[0-9]+", uid) for uid in ids):
-                raise ConnectorError("Bridge returned invalid message identifiers.")
-            ids = sorted(set(int(uid) for uid in ids if int(uid) > minimum))
-            if before_uid:
-                ids = [uid for uid in ids if uid < before_uid]
+        ids = search_uids(connection, target['minimum_uid'], before_uid)
         selected = list(reversed(ids[-limit:]))
         messages = []
         for uid in selected:

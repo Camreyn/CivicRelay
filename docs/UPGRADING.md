@@ -1,8 +1,15 @@
-# Updating CivicRelay to 0.7.0
+# Updating CivicRelay to 0.7.1
 
 This release contains the guided installer and the mailbox-privacy fix. The old
 0.6.1 release ZIP does not. Updating code alone neither deletes accidental mail
 imports nor chooses a new mailbox scope.
+
+**Already on 0.7.0?** This patch fixes mail checks on empty selected Proton
+folders/labels. Follow steps 1–3, then keep your saved scope and click **Check for
+replies**. Empty labels should report **0 new headers synced. Mailbox check
+complete.** Do not re-preview/apply a working scope just for this patch: that
+would move a new-only boundary and could skip mail that arrived since setup.
+There are no new tools, dependencies, data migrations or permission changes.
 
 ## 1. Stop the old code
 
@@ -37,7 +44,7 @@ the normal `Camreyn/CivicRelay` clone, not the separate CivicResultMaps reposito
 
 ### If installed from a ZIP
 
-Download the **Source code (zip)** for [v0.7.0](https://github.com/Camreyn/CivicRelay/releases/tag/v0.7.0).
+Download the **Source code (zip)** for [v0.7.1](https://github.com/Camreyn/CivicRelay/releases/tag/v0.7.1).
 Extract the entire archive into a new, permanent local folder. Keep the old
 installation as a rollback/reference copy, but do not run its old mail tools.
 Move/copy no private AppData databases into either checkout.
@@ -60,10 +67,10 @@ The installer is not an automatic source updater.
 
 Open **Open CivicRelay.cmd**, reload the page, and restart the assistant
 connections using the updated paths. Use `desk_status` (or `/health`) to confirm
-`tooling_version: 0.7.0`; `proton_status` also reports `version: 0.7.0`.
+`tooling_version: 0.7.1`; `proton_status` also reports `version: 0.7.1`.
 If it reports an older version, an old process/connection is still in use.
 
-Existing assistant allowlists may need these additions:
+Assistant allowlists from before 0.7.0 may need these additions (unchanged in 0.7.1):
 
 ```text
 desk_get_mail_scope
@@ -81,7 +88,8 @@ latest `proton_list_messages` result. Restart connections to load the new schema
 
 ## 4. Make the one-time privacy choice
 
-Open **Settings → Mail privacy**. Existing installs now pause remote mail reads
+Skip this step if your reviewed 0.7.0 scope is already saved and still valid.
+Otherwise open **Settings → Mail privacy**. Older installs pause remote mail reads
 until a scope is previewed and applied. This is intentional; the old account
 attestation did not reliably protect a personal inbox.
 

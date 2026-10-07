@@ -81,6 +81,14 @@ Legacy IDs/drafts/receipts and case references are not rewritten. Out-of-scope
 unassigned imports are hidden, not automatically deleted. Case-linked saved
 evidence stays accessible; remote body capture must still satisfy scope.
 
+Both header-reading interfaces share `bridge.search_uids`. After scope/UIDVALIDITY
+validation, it checks SELECT's EXISTS and UIDNEXT metadata. Empty folders and
+empty eligible windows skip UID SEARCH, avoiding Bridge/Gluon's empty-label
+rejection. Other searches use a numeric upper fence and independently bound
+returned UIDs. Arrivals after SELECT wait for the next explicit check; sync
+cursors advance only through handled UIDs, never directly to UIDNEXT. Missing
+metadata, genuine search failures and oversized/invalid results remain errors.
+
 Cleanup previews contain IDs/hashes, not copies of deleted header/body text.
 Case/artifact/audit references and connected immutable draft/reply chains protect
 messages. Apply recomputes protection under the records operation lease and

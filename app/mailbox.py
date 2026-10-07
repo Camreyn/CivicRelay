@@ -78,11 +78,7 @@ def sync_folder(settings,db,folder,outgoing,scope=None):
         # infer permission to re-import from a changed UIDVALIDITY.
         same_scope=cursor.get('mail_scope_id')==scope['id']
         last=max(target['minimum_uid'],cursor.get('last_uid',0) if matching and same_scope else 0)
-        status,result=con.uid('search',None,'UID',f'{last+1}:*')
-        if status!='OK' or not result or len(result[0])>2*1024*1024:raise ConnectorError('Mailbox search failed or was too large.')
-        rawids=result[0].split()
-        if any(not re.fullmatch(rb'[0-9]+',i) for i in rawids):raise ConnectorError('Mailbox returned invalid message identifiers.')
-        ids=sorted(set(int(x) for x in rawids if int(x)>last))
+        ids=bridge.search_uids(con,last)
         chosen=ids[:80]; existing=[m for m in db.all('mail') if mail_scope.visible(scope,m)]; count=0
         for uid in chosen:
             key=message_key(folder,validity,uid,remote)

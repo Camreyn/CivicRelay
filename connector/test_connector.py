@@ -514,7 +514,7 @@ class BridgeTests(unittest.TestCase):
     def test_list_uses_readonly_select_peek_and_uid_fence(self):
         connection = MagicMock()
         connection.select.return_value = ("OK", [b"1"])
-        connection.response.return_value = ("UIDVALIDITY", [b"42"])
+        connection.response.side_effect = lambda name: (name, [{'UIDVALIDITY': b'42', 'EXISTS': b'2', 'UIDNEXT': b'10'}[name]])
         connection.uid.side_effect = [("OK", [b"1 9"]), ("OK", [(b"2 (UID 9", b"Subject: fixture\r\n\r\n")])]
         with patch("bridge.imap_connection") as factory:
             factory.return_value.__enter__.return_value = connection
@@ -523,7 +523,63 @@ class BridgeTests(unittest.TestCase):
         self.assertEqual(result["uid_validity"], 42)
         self.assertEqual(result["messages"][0]["uid"], 9)
         self.assertEqual(result["next_before_uid"], 9)
+        self.assertEqual(connection.uid.call_args_list[0].args, ('search', None, 'UID', '1:9'))
         self.assertIn("BODY.PEEK", connection.uid.call_args_list[-1].args[2])
+
+    def test_search_skips_empty_labels_even_after_old_uids_were_removed(self):
+        for next_uid in (b'1', b'51'):
+            connection = MagicMock()
+            connection.response.side_effect = lambda name: (name, [b'0' if name == 'EXISTS' else next_uid])
+            connection.uid.return_value = ('NO', [b'no such message'])
+            self.assertEqual(bridge.search_uids(connection, 0), [])
+            connection.uid.assert_not_called()
+
+    def test_search_requires_valid_folder_metadata_before_any_uid_command(self):
+        for name in ('EXISTS', 'UIDNEXT'):
+            for value in ([], [None], [b''], [b'-1'], [b'4294967296'], ['1'], [b'1', b'2']):
+                with self.subTest(name=name, value=value):
+                    connection = MagicMock()
+                    connection.response.side_effect = lambda key: (key, value if key == name else [b'2'])
+                    with self.assertRaisesRegex(ConnectorError, name): bridge.search_uids(connection, 0)
+                    connection.uid.assert_not_called()
+
+    def test_search_rejects_failed_malformed_and_oversized_responses(self):
+        connection = MagicMock()
+        connection.response.side_effect = lambda name: (name, [b'3'])
+        for status, data, error in (
+                ('NO', [b'private upstream text'], 'could not search'),
+                ('BAD', [b'private upstream text'], 'could not search'),
+                ('OK', [], 'invalid message-search response'),
+                ('OK', [None], 'invalid message-search response'),
+                ('OK', ['1'], 'invalid message-search response'),
+                ('OK', [b'1', b'2'], 'invalid message-search response'),
+                ('OK', [b'1' * (bridge.MAX_MESSAGE + 1)], 'safe size limit'),
+                ('OK', [b'1 two'], 'invalid message identifiers'),
+                ('OK', [b'0'], 'invalid message identifiers'),
+                ('OK', [b'4294967296'], 'invalid message identifiers')):
+            with self.subTest(status=status, error=error):
+                connection.uid.return_value = status, data
+                with self.assertRaisesRegex(ConnectorError, error) as failure: bridge.search_uids(connection, 0)
+                self.assertNotIn('private upstream text', str(failure.exception))
+
+    def test_search_keeps_both_fences_and_deduplicates_results(self):
+        connection = MagicMock()
+        connection.response.side_effect = lambda name: (name, [b'8' if name == 'EXISTS' else b'12'])
+        connection.uid.return_value = ('OK', [b'1 6 7 7 8 9 11 12'])
+        self.assertEqual(bridge.search_uids(connection, 6, before_uid=9), [7, 8])
+        connection.uid.assert_called_once_with('search', None, 'UID', '7:8')
+        connection.uid.return_value = ('OK', [b''])
+        self.assertEqual(bridge.search_uids(connection, 6), [])
+
+    def test_search_leaves_post_select_arrivals_for_next_explicit_check(self):
+        connection = MagicMock()
+        connection.response.side_effect = lambda name: (name, [b'1' if name == 'EXISTS' else b'10'])
+        connection.uid.return_value = ('OK', [b'9 10'])
+        self.assertEqual(bridge.search_uids(connection, 8), [9])
+        connection.uid.assert_called_with('search', None, 'UID', '9:9')
+        connection.response.side_effect = lambda name: (name, [b'2' if name == 'EXISTS' else b'11'])
+        self.assertEqual(bridge.search_uids(connection, 9), [10])
+        connection.uid.assert_called_with('search', None, 'UID', '10:10')
 
     def test_read_rejects_stale_uidvalidity_before_fetch(self):
         connection = MagicMock()
