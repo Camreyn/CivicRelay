@@ -6,7 +6,7 @@ The **General records desk** is a private, local workspace for reusable public-r
 
 Choose **General records desk** from the Workflow menu. A new workspace can stay blank or use the CivicResultMaps starter pack. Profile fields are only needed when you are ready to create correspondence; existing values remain available only in the local workspace and are not part of a template export.
 
-For the dedicated local mailbox, use `Open-Proton-Setup.ps1` in an interactive Windows session and follow [setup](SETUP.md). The dashboard never accepts mail credentials or Bridge passwords.
+For the local mail connection, use `Open-Proton-Setup.ps1` in an interactive Windows session and follow [setup](SETUP.md). Then choose a scope in **Settings → Mail privacy**: custom folders for a personal account or Inbox/Sent for a dedicated address. The dashboard never accepts credentials or Bridge passwords. See [mail privacy and recovery](MAIL-PRIVACY.md).
 
 ## Templates
 

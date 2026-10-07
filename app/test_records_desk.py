@@ -45,6 +45,8 @@ class DeskTests(unittest.TestCase):
         self.settings={'version':1,'email':connector.PROJECT_EMAIL,'password':'synthetic-never-a-real-credential',
             'imap_port':1143,'smtp_port':1025,'imap_pin':'1'*64,'smtp_pin':'2'*64,'sending_enabled':True,'project_mailbox_confirmed':True}
         self.store.save_settings(self.settings)
+        self.store.save_mail_scope({'version':1,'id':'0'*32,'mode':'dedicated','identity':list(Store._identity(self.settings)),
+            'import_history':True,'folders':{f:{'remote_folder':f,'uid_validity':1,'minimum_uid':0} for f in ('INBOX','Sent')}},0)
         self.service=Service(self.db,copy.deepcopy(self.catalog),self.store)
         self.case_id='source-IN-2024'
     def tearDown(self):self.temp.cleanup()
@@ -345,7 +347,7 @@ class HttpTests(unittest.TestCase):
         try:
             code,_,body=request('/health');health=json.loads(body)
             self.assertEqual(code,200);self.assertEqual(health['distribution'],'civic-records-desk')
-            self.assertEqual(health['package_version'],'0.6.1');self.assertEqual(health['tooling_version'],'0.6.1')
+            self.assertEqual(health['package_version'],'0.7.0');self.assertEqual(health['tooling_version'],'0.7.0')
             self.assertEqual(health['installation_id'],hashlib.sha256(str(server.ROOT.parent).lower().encode()).hexdigest())
             self.assertEqual(request(headers={'Host':'attacker.example'})[0],403)
             self.assertEqual(request('/api/bootstrap')[0],403)

@@ -1,6 +1,6 @@
 # Account configuration
 
-CivicRelay supports one dedicated Proton Mail Bridge mailbox for each Windows-user installation. It is a local configuration, not a hosted account system and not a multi-account mail client.
+CivicRelay supports one Proton Mail Bridge connection for each Windows-user installation, with a reviewed mailbox scope. Use selected custom folders/labels for a personal account, or Inbox/Sent for a genuinely dedicated address. It is a local configuration, not a hosted account system or multi-account client.
 
 Mail enrollment is optional. A fresh user can begin with the blank workspace and
 create private templates/campaigns without Bridge, GitHub, or the historical
@@ -9,18 +9,21 @@ not a required account identity.
 
 ## Enrolling a fresh installation
 
-Run `Open-Proton-Setup.ps1` in an interactive Windows session. Enter a dedicated
+Run `Open-Proton-Setup.ps1` in an interactive Windows session. Enter your
 Bridge username, a sender display name, the Bridge-generated password, and the
 local IMAP/SMTP ports. Credentials are entered only in that Tkinter window and
 saved with Windows DPAPI; they are never accepted through dashboard, MCP,
 command-line, or environment arguments.
 
-The setup window requires an isolation attestation: use a dedicated mailbox or
-Proton Bridge split-address mode that exposes only the intended address. It
+The setup window requires acknowledgment of the mail privacy requirement. It
 probes and displays the loopback-only STARTTLS certificates before
 authentication. Certificate pins are checked before every authentication. Setup
 does not read mail or send mail, and sending remains disabled unless the local
-user explicitly enables it.
+user explicitly enables it. Then open **Settings → Mail privacy** and preview/apply
+the allowed folders and history boundary. Remote reads are blocked until then,
+including after an upgrade from an older release. The legacy
+`project_mailbox_confirmed` credential-setting field remains for compatibility;
+it is not permission to read the whole mailbox. See [mail privacy](MAIL-PRIVACY.md).
 
 The display name and a generated profile ID are bound into every new v2 draft digest. A reviewed draft therefore cannot be moved to another sender profile. Existing v1 CivicResultMaps settings and drafts retain their exact legacy digest and wire `From` format; they continue to require their original legacy sender settings.
 

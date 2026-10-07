@@ -10,7 +10,7 @@ import uuid
 from runtime import REPO
 from secure_store import ConnectorError, WindowsProtector, records_root, guard_repository_location
 
-KINDS={'case','mail','body','blob','artifact','sync','issue','event','campaign','workspace','template','destination','contact','contact_batch','source','source_snapshot'}
+KINDS={'case','mail','body','blob','artifact','sync','issue','event','campaign','workspace','template','destination','contact','contact_batch','source','source_snapshot','mail_scope_preview','mail_cleanup','mail_exclusion'}
 IDENTIFIED_KINDS=KINDS-{'blob','sync'}
 
 class Database:
@@ -54,7 +54,8 @@ class Database:
         if row['kind'] in IDENTIFIED_KINDS and data.get('id')!=row['id']:
             raise ConnectorError('Private record inner identity does not match its envelope.')
         if row['kind']=='mail':
-            expected=f"{data.get('folder')}:{data.get('uid_validity')}:{data.get('uid')}"
+            from mail_scope import message_key
+            expected=message_key(data.get('folder'),data.get('uid_validity'),data.get('uid'),data.get('remote_folder'))
             if expected!=row['id']:raise ConnectorError('Mail identity does not match its UID-bound envelope.')
         if row['kind']=='sync' and data.get('folder')!=row['id']:raise ConnectorError('Mail cursor folder identity changed.')
         return value['value']
@@ -99,6 +100,28 @@ class Database:
         try:yield
         finally:
             with self.connect() as con:con.execute('DELETE FROM lease WHERE id=1 AND owner=?',(owner,))
+
+    def remove_mail_imports(self,plan,receipt):
+        """One bounded, atomic local cleanup; never deletes case/artifact stores."""
+        from mail_privacy import digest
+        with self.connect() as con:
+            con.execute('BEGIN IMMEDIATE')
+            for item in plan['messages']:
+                for kind,key,expected in (('mail',item['id'],item['hash']),('body',item['id'],item['body_hash'])):
+                    row=con.execute('SELECT * FROM records WHERE kind=? AND id=?',(kind,key)).fetchone()
+                    if digest(self.decode(row) if row else None)!=expected:
+                        raise ConnectorError('Mail changed after the cleanup preview. Nothing was removed; preview again.')
+                con.execute('DELETE FROM records WHERE kind IN (\'mail\',\'body\') AND id=?',(item['id'],))
+                key=item['exclusion']
+                value={'id':key,'at':time.time()}
+                payload=self.protector.protect({'kind':'mail_exclusion','id':key,'rev':1,'value':value})
+                con.execute('INSERT OR IGNORE INTO records VALUES(?,?,?,?)',('mail_exclusion',key,1,payload))
+            row=con.execute('SELECT * FROM records WHERE kind=? AND id=?',('mail_cleanup',plan['id'])).fetchone()
+            saved=self.decode(row) if row else None
+            if saved!=plan:raise ConnectorError('Cleanup preview changed. Nothing was removed.')
+            rev=row['rev']+1
+            payload=self.protector.protect({'kind':'mail_cleanup','id':plan['id'],'rev':rev,'value':{**plan,'applied':True,'receipt':receipt}})
+            con.execute('UPDATE records SET rev=?,payload=? WHERE kind=? AND id=?',(rev,payload,'mail_cleanup',plan['id']))
     def event(self,case_id,action,details):
         key=str(uuid.uuid4())
         self.put('event',key,{'id':key,'case_id':case_id,'action':action,'at':time.time(),'details':details})

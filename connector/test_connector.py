@@ -36,6 +36,10 @@ def profile_settings(email="relay@example.org", name="Civic Relay", profile="000
             "project_mailbox_confirmed": True}
 
 
+def test_mail_scope():
+    return {'configured':True, 'id':'0'*32, 'folders':{'INBOX':{'remote_folder':'INBOX','uid_validity':42,'minimum_uid':0}}}
+
+
 class TestOnlyProtector:
     """Non-security fixture for portable behavioral tests; production cannot select it."""
     def protect(self, value):
@@ -514,8 +518,8 @@ class BridgeTests(unittest.TestCase):
         connection.uid.side_effect = [("OK", [b"1 9"]), ("OK", [(b"2 (UID 9", b"Subject: fixture\r\n\r\n")])]
         with patch("bridge.imap_connection") as factory:
             factory.return_value.__enter__.return_value = connection
-            result = bridge.list_messages(settings(), "INBOX", 1, None)
-        connection.select.assert_called_once_with("INBOX", readonly=True)
+            result = bridge.list_messages(settings(), "INBOX", 1, None, test_mail_scope())
+        connection.select.assert_called_once_with('"INBOX"', readonly=True)
         self.assertEqual(result["uid_validity"], 42)
         self.assertEqual(result["messages"][0]["uid"], 9)
         self.assertEqual(result["next_before_uid"], 9)
@@ -528,7 +532,7 @@ class BridgeTests(unittest.TestCase):
         with patch("bridge.imap_connection") as factory:
             factory.return_value.__enter__.return_value = connection
             with self.assertRaises(ConnectorError):
-                bridge.read_message(settings(), "INBOX", 1, 42)
+                bridge.read_message(settings(), "INBOX", 1, 42, test_mail_scope())
         connection.uid.assert_not_called()
 
     def test_oversized_message_is_rejected_before_body_fetch(self):
@@ -539,7 +543,7 @@ class BridgeTests(unittest.TestCase):
         with patch("bridge.imap_connection") as factory:
             factory.return_value.__enter__.return_value = connection
             with self.assertRaises(ConnectorError):
-                bridge.read_message(settings(), "INBOX", 1, 42)
+                bridge.read_message(settings(), "INBOX", 1, 42, test_mail_scope())
         self.assertEqual(connection.uid.call_count, 1)
 
     def test_message_body_is_read_with_peek_and_matching_uid(self):
@@ -551,7 +555,7 @@ class BridgeTests(unittest.TestCase):
                                       ("OK", [(b"1 (UID 9 BODY[]", raw)])]
         with patch("bridge.imap_connection") as factory:
             factory.return_value.__enter__.return_value = connection
-            result = bridge.read_message(settings(), "INBOX", 9, 42)
+            result = bridge.read_message(settings(), "INBOX", 9, 42, test_mail_scope())
         self.assertIn("Fixture body.", result["body"])
         self.assertIn("BODY.PEEK", connection.uid.call_args_list[-1].args[2])
 

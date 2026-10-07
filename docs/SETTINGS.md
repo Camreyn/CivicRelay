@@ -1,12 +1,18 @@
 # Settings, source refresh and state guides
 
-Open **Settings** in the dashboard header. The panel has three keyboard-accessible
-sections: **Sources**, **State guides**, and **Privacy & accounts**. Use the arrow,
+Open **Settings** in the dashboard header. The panel has four keyboard-accessible
+sections: **Sources**, **State guides**, **Privacy & accounts**, and **Mail privacy**. Use the arrow,
 Home and End keys to move between section tabs. Escape or **Close settings** closes
 the panel without changing a case. The panel does not replace the workspace,
 template, campaign or local Proton setup controls.
 
 ## Sources
+
+For mailbox setup or accidentally imported personal mail, use **Mail privacy**,
+not Sources. See [the mailbox scope and cleanup guide](MAIL-PRIVACY.md). Opening
+that tab reads saved scope/counts only; previewing a scope is a separate explicit
+folder-metadata connection. Applying it does not import mail. Cleanup has its own
+reviewed preview and never deletes Proton originals.
 
 The source list shows each supported public directory's official URL, purpose,
 last attempted check, last successful collection, saved record count, collection
@@ -133,7 +139,9 @@ button does not change host tool permissions. See the
 [tool reference](TOOL-REFERENCE.md) and [operator guide](OPERATOR-TOOLS.md).
 
 `app/static/settings.js` exports
-`createSettings({host, api, onSourcesChanged})`, returning `open()` and `close()`.
+`createSettings({host, api, onSourcesChanged, onMailChanged})`, returning
+`open(section)` and `close()`. The optional change callbacks reload saved views,
+not remote mail; `open('mail')` selects the Mail privacy tab.
 The caller supplies the dialog host and the same guarded operation adapter used
 by the dashboard. The optional callback refreshes other saved-data views after
 a successful collection; it must not synchronize mail or send messages.

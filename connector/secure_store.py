@@ -86,7 +86,7 @@ LEGACY_NAMESPACE = "CivicResultMaps"
 CURRENT_NAMESPACE = "CivicRelay"
 CONNECTOR_DIRECTORY = "ProtonConnector"
 RECORDS_DIRECTORY = "RecordsDesk"
-PRIVATE_MARKERS = ("settings.dpapi", "drafts.sqlite3", "drafts.sqlite3-journal", "drafts.sqlite3-wal", "drafts.sqlite3-shm")
+PRIVATE_MARKERS = ("settings.dpapi", "mail-scope.dpapi", "drafts.sqlite3", "drafts.sqlite3-journal", "drafts.sqlite3-wal", "drafts.sqlite3-shm")
 CONTENT_KEYS = ("from", "to", "cc", "subject", "body", "in_reply_to", "references")
 
 
@@ -161,6 +161,32 @@ class Store:
         if not path.exists():
             raise ConnectorError("Not configured. Run the local connector setup window first.")
         return self.protector.unprotect(path.read_bytes())
+
+    def mail_scope(self) -> dict | None:
+        self.guard_paths()
+        path = self.root / "mail-scope.dpapi"
+        return self.protector.unprotect(path.read_bytes()) if path.exists() else None
+
+    def save_mail_scope(self, value: dict, expected_revision: int) -> None:
+        self.guard_paths()
+        # All callers use the records operation lease. Atomic replacement keeps
+        # independent read-only mail workers from seeing partial scope settings.
+        current = self.mail_scope()
+        if (current or {}).get("revision", 0) != expected_revision:
+            raise ConnectorError("Mail scope changed. Prepare a fresh preview.")
+        if value.get("identity") != list(self._identity(self.settings())):
+            raise ConnectorError("Mail scope identity does not match enrollment.")
+        self.root.mkdir(parents=True, exist_ok=True)
+        protected = self.protector.protect({**value, "revision": expected_revision + 1})
+        fd, name = tempfile.mkstemp(prefix="scope-", suffix=".dpapi", dir=self.root)
+        try:
+            with os.fdopen(fd, "wb") as handle:
+                handle.write(protected)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(name, self.root / "mail-scope.dpapi")
+        finally:
+            Path(name).unlink(missing_ok=True)
 
     @staticmethod
     def _identity(settings: dict) -> tuple[str, str, str | None]:

@@ -9,7 +9,7 @@ different administrator account: encrypted records belong to the signed-in user.
 
 ## Three steps
 
-1. Download the [current main-branch source ZIP](https://github.com/Camreyn/CivicRelay/archive/refs/heads/main.zip)
+1. Download **Source code (zip)** from [v0.7.0](https://github.com/Camreyn/CivicRelay/releases/tag/v0.7.0)
    (also available from the repository's **Code → Download ZIP** menu).
    The older **v0.6.1 release ZIP does not include this installer**. These
    instructions describe the current source, not that older release. Extract
@@ -58,15 +58,17 @@ and the [WinGet package manifests](https://github.com/microsoft/winget-pkgs).
 
 ## The parts that still need you
 
-- **Email:** use a dedicated Proton mailbox and a paid plan that includes Mail.
+- **Email:** use a paid Proton plan that includes Mail. A personal account must
+  use selected custom CivicRelay folders; a dedicated account/address is also supported.
   Open Proton Mail Bridge and sign in there. Then double-click **Open Proton
   Setup.cmd** for first-time CivicRelay enrollment. Enter the generated Bridge
-  password and actual IMAP/SMTP ports in that local form; attest mailbox isolation
+  password and actual IMAP/SMTP ports in that local form; acknowledge mailbox scope
   and review TLS trust and sending enablement. Never enter these in chat or Git.
   [Proton's installation guide](https://proton.me/support/protonmail-bridge-install)
   describes Bridge sign-in; [account configuration](ACCOUNT-CONFIGURATION.md)
   describes CivicRelay's separate enrollment. Existing users should **not**
-  re-enroll just because they ran setup.
+  re-enroll just because they ran setup. Before reading mail, use **Settings →
+  Mail privacy** to preview/apply its scope. History is off by default.
 - **Assistant:** install/use your own compatible local assistant client, review
   the generated configuration, open this folder as a trusted project, and
   reconnect the two MCP servers. Setup does not install an LLM, buy a subscription,
@@ -78,6 +80,10 @@ and the [WinGet package manifests](https://github.com/microsoft/winget-pkgs).
   templates and private exports do not require GitHub.
 
 ## Checking, rerunning and updating
+
+For a source update, follow [UPGRADING.md](UPGRADING.md), with separate Git and ZIP
+instructions and accidental-import recovery. Rerunning this installer alone does
+not download new CivicRelay source code.
 
 Double-click **Check CivicRelay.cmd** for a read-only prerequisite/dependency
 check. It does not install, write configuration, start the app, read mailbox

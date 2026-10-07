@@ -1,5 +1,6 @@
-// Local settings read saved metadata; only an explicit refresh fetches a reviewed public source.
-export function createSettings({host, api, onSourcesChanged = async () => {}}) {
+// Local settings read saved metadata; remote operations are always explicit.
+import {createMailPrivacy} from './mail-privacy.js';
+export function createSettings({host, api, onSourcesChanged = async () => {}, onMailChanged = async () => {}}) {
   let inventory = [], loading = false, refreshing = false, readingFile = false, pendingResult = null;
   let opener = null, selectedTab = 'sources', loadVersion = 0;
   const imports = new Map();
@@ -50,7 +51,7 @@ export function createSettings({host, api, onSourcesChanged = async () => {}}) {
   tabs.setAttribute('role', 'tablist');
   tabs.setAttribute('aria-label', 'Settings sections');
   const panels = new Map(), tabButtons = new Map();
-  for (const [id, label] of [['sources', 'Sources'], ['guides', 'State guides'], ['privacy', 'Privacy & accounts']]) {
+  for (const [id, label] of [['sources', 'Sources'], ['guides', 'State guides'], ['privacy', 'Privacy & accounts'], ['mail', 'Mail privacy']]) {
     const tab = button(label, () => selectTab(id));
     tab.id = `settings-tab-${id}`;
     tab.setAttribute('role', 'tab');
@@ -83,6 +84,7 @@ export function createSettings({host, api, onSourcesChanged = async () => {}}) {
       tab.tabIndex = selected ? 0 : -1;
       panels.get(key).hidden = !selected;
     }
+    if (id === 'mail') void mailPrivacy.load();
   }
 
   const sourcePanel = panels.get('sources');
@@ -102,6 +104,7 @@ export function createSettings({host, api, onSourcesChanged = async () => {}}) {
   guides.append(el('h3', 'Guides appear with the selected state'), el('p', 'When a guide is available, CivicRelay automatically places it beside the selected state. It starts collapsed; open its heading to read the guidance and source links.'), el('p', 'A guide is reference material, not an automatically sent request. Selecting a state or opening a guide does not refresh a website, check the mailbox, change case routing, or authorize any action.'), el('p', 'Guides exist only for supported states. Source dates and limitations remain visible inside the guide. A source-directory refresh updates collected contacts, not the bundled legal guidance or deadline rules.', 'settings-note'));
   const privacy = panels.get('privacy');
   privacy.append(el('h3', 'Local workspace, separate permissions'), el('p', 'Private cases, correspondence and collected contacts stay in the existing local workspace. Refresh diagnostics describe the public-source operation; do not paste credentials or private correspondence into source notes.'), el('p', 'This settings panel does not edit Proton credentials, sending limits, TLS trust, assistant-host permissions, publication destinations, or account identity.'), el('p', 'Use the local Proton setup window for account enrollment and trusted connection settings. Existing workspace and template controls remain in the dashboard. Opening Settings never starts automatic source refresh, mailbox polling or sending.', 'settings-note'));
+  const mailPrivacy = createMailPrivacy({host: panels.get('mail'), api, onChanged: onMailChanged});
   dialog.append(head, intro, tabs, ...panels.values());
 
   const resultDialog = el('dialog', undefined, 'settings-result-dialog');
@@ -315,13 +318,15 @@ export function createSettings({host, api, onSourcesChanged = async () => {}}) {
     }
     showResult(result);
   }
-  function open() {
+  function open(section) {
+    if (section && panels.has(section)) selectTab(section);
     if (dialog.open) return;
     opener = document.activeElement;
     dialog.showModal();
     tabButtons.get(selectedTab).focus();
     if (pendingResult) showResult(pendingResult);
     void loadInventory();
+    if (selectedTab === 'mail') void mailPrivacy.load();
   }
   function close() {
     if (resultDialog.open) resultDialog.close();

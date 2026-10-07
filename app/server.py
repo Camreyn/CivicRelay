@@ -47,8 +47,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if not self.allowed(): return self.json({'ok':False,'error':'Local origin required.'},403)
         route=urllib.parse.urlsplit(self.path).path
-        if route=='/health': return self.json({'ok':True,'app':'CivicResultMaps Records Desk','local_only':True,'tooling_version':'0.6.1',
-            'distribution':'civic-records-desk','package_version':'0.6.1','installation_id':INSTALLATION_ID})
+        if route=='/health': return self.json({'ok':True,'app':'CivicResultMaps Records Desk','local_only':True,'tooling_version':'0.7.0',
+            'distribution':'civic-records-desk','package_version':'0.7.0','installation_id':INSTALLATION_ID})
         if route.startswith('/api/'):
             if not self.allowed(True): return self.json({'ok':False,'error':'Open the local dashboard first.'},403)
             if route=='/api/bootstrap':
@@ -68,6 +68,8 @@ class Handler(BaseHTTPRequestHandler):
                '/state-guides.js':('state-guides.js','text/javascript; charset=utf-8'),
                '/state-guides.css':('state-guides.css','text/css; charset=utf-8'),
                '/settings.js':('settings.js','text/javascript; charset=utf-8'),
+               '/mail-privacy.js':('mail-privacy.js','text/javascript; charset=utf-8'),
+               '/mail-privacy-contracts.mjs':('mail-privacy-contracts.mjs','text/javascript; charset=utf-8'),
                '/settings.css':('settings.css','text/css; charset=utf-8'),
                '/contacts.js':('contacts.js','text/javascript; charset=utf-8'),
                '/contacts.css':('contacts.css','text/css; charset=utf-8'),

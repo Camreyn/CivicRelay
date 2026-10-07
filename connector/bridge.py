@@ -108,9 +108,12 @@ def select_readonly(connection, folder: str) -> int:
     if status != "OK":
         raise ConnectorError("Requested project folder is unavailable in Bridge.")
     _, values = connection.response("UIDVALIDITY")
-    if not values or not values[0] or not re.fullmatch(rb"[0-9]+", values[0]):
+    if not values or len(values) != 1 or not values[0] or not re.fullmatch(rb"[0-9]+", values[0]):
         raise ConnectorError("Bridge did not supply a stable mailbox identity.")
-    return int(values[0])
+    validity = int(values[0])
+    if not 1 <= validity <= 4294967295:
+        raise ConnectorError("Bridge supplied an invalid mailbox identity.")
+    return validity
 
 
 def literal(data, limit: int) -> bytes:
@@ -133,20 +136,23 @@ def headers(message) -> dict:
             ("From", "To", "Cc", "Subject", "Date", "Message-ID", "In-Reply-To")}
 
 
-def list_messages(settings: dict, folder: str, limit: int, before_uid: int | None) -> dict:
+def list_messages(settings: dict, folder: str, limit: int, before_uid: int | None, scope=None) -> dict:
+    import mail_scope
+    target = mail_scope.entry(scope or {}, folder)
     with imap_connection(settings) as connection:
-        validity = select_readonly(connection, folder)
-        if before_uid == 1:
+        validity = mail_scope.select(connection, scope, folder)
+        minimum = target['minimum_uid']
+        if before_uid is not None and before_uid <= minimum + 1:
             ids = []
         else:
-            criteria = ("UID", f"1:{before_uid - 1}") if before_uid else ("ALL",)
+            criteria = ("UID", f"{minimum + 1}:{before_uid - 1 if before_uid else '*'}")
             status, data = connection.uid("search", None, *criteria)
             if status != "OK" or not data or len(data[0]) > MAX_MESSAGE:
                 raise ConnectorError("Bridge search failed or exceeded the result limit.")
             ids = data[0].split()
             if any(not re.fullmatch(rb"[0-9]+", uid) for uid in ids):
                 raise ConnectorError("Bridge returned invalid message identifiers.")
-            ids = sorted(set(int(uid) for uid in ids))
+            ids = sorted(set(int(uid) for uid in ids if int(uid) > minimum))
             if before_uid:
                 ids = [uid for uid in ids if uid < before_uid]
         selected = list(reversed(ids[-limit:]))
@@ -161,7 +167,7 @@ def list_messages(settings: dict, folder: str, limit: int, before_uid: int | Non
             item = headers(BytesParser(policy=policy.default).parsebytes(raw))
             item.update(uid=uid, headers_may_be_truncated=len(raw) == 16384)
             messages.append(item)
-        return {"untrusted_email_content": True, "folder": folder, "uid_validity": validity,
+        return {"untrusted_email_content": True, "folder": folder, "uid_validity": validity, "mail_scope_id": scope['id'],
                 "messages": messages, "next_before_uid": min(selected) if len(ids) > limit else None,
                 "read_only": True}
 
@@ -212,9 +218,11 @@ def parse_message(raw: bytes) -> dict:
             "attachment_bytes_may_be_in_raw_message": True}
 
 
-def read_message(settings: dict, folder: str, uid: int, uid_validity: int) -> dict:
+def read_message(settings: dict, folder: str, uid: int, uid_validity: int, scope=None) -> dict:
+    import mail_scope
+    mail_scope.check_uid(scope or {}, folder, uid_validity, uid)
     with imap_connection(settings) as connection:
-        if select_readonly(connection, folder) != uid_validity:
+        if mail_scope.select(connection, scope, folder) != uid_validity:
             raise ConnectorError("Mailbox identity changed. List messages again before reading.")
         status, data = connection.uid("fetch", str(uid), "(UID RFC822.SIZE)")
         sizes = re.findall(rb"RFC822\.SIZE ([0-9]+)", b" ".join(x for x in data if isinstance(x, bytes)))
@@ -230,5 +238,5 @@ def read_message(settings: dict, folder: str, uid: int, uid_validity: int) -> di
         verify_uid(data, uid)
         if len(raw) != int(sizes[0]):
             raise ConnectorError("Message was truncated or changed during retrieval.")
-        return {**parse_message(raw), "uid": uid, "uid_validity": uid_validity,
+        return {**parse_message(raw), "uid": uid, "uid_validity": uid_validity, "mail_scope_id": scope['id'],
                 "folder": folder, "read_only": True}

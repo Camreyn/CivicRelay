@@ -146,6 +146,14 @@ enforces its operation allowlist and all side-effect safeguards.
 
 ## Safe native call order
 
+Before remote mail operations, inspect `desk_get_mail_scope` (also summarized
+by `proton_status`). Version 0.7.0 requires a previewed scope even on upgrades.
+Never broaden it or clean old imports under an ordinary “check my mail” request.
+For expressly authorized configuration/recovery, use the five tools documented
+in [MAIL-PRIVACY.md](MAIL-PRIVACY.md). Native low-level mail tools enforce the same
+boundary. Stop on changed UIDVALIDITY rather than fetching history directly.
+Local case-linked evidence remains available; hidden unassigned mail does not.
+
 Start with status and workflow discovery. Read a case immediately before saving;
 preserve its revision, notes, stage, routing evidence and fields not being changed.
 Do not mark routing verified just because a catalog lists a contact. Current

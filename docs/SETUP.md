@@ -37,8 +37,8 @@ npm.cmd ci --ignore-scripts
 On an existing installation, moving this folder does not require account setup.
 Do not copy encrypted databases into the repository to make the app portable.
 
-CivicRelay 0.6.1 supports one dedicated Proton Bridge mailbox for each Windows
-user. New users may choose their dedicated address and sender display name in
+CivicRelay 0.7.0 supports one scoped Proton Bridge connection for each Windows
+user. New users may choose their address and sender display name in
 the local setup window. It remains a local records manager, not a general or
 multi-account email client. Existing v1 CivicResultMaps settings, drafts,
 receipts, sender identity, and quota remain in place; do not use setup to
@@ -95,12 +95,12 @@ never stop all Python or Node processes.
 
 ## First-time account enrollment only
 
-1. Use a dedicated mailbox or Bridge split-address mode that exposes only the
-   intended address. Isolation is user-attested, not independently
-   guaranteed by the connector.
+1. Use a dedicated mailbox/isolated address, or create custom CivicRelay folders
+   for an existing personal account. The app will read only the reviewed scope
+   configured afterwards. See [mail privacy](MAIL-PRIVACY.md).
 2. Double-click **Open Proton Setup.cmd** (or run `Open-Proton-Setup.ps1`) in an
    interactive Windows session.
-3. Enter the dedicated Bridge username, your sender display name, its generated
+3. Enter the Bridge username, your sender display name, its generated
    Bridge password, and the local ports shown by Bridge. Do not use the Proton
    account password. Defaults are IMAP 1143 and SMTP 1025; use the actual values
    in the local Bridge window.
@@ -108,6 +108,9 @@ never stop all Python or Node processes.
    Sending remains disabled unless locally enabled.
 5. Use `proton_status` and then `proton_check_connection`. The connection check
    authenticates IMAP/SMTP without sending or reading message bodies.
+6. In **Settings → Mail privacy**, preview and apply the folder scope. Default
+   is to skip existing mail. Use custom folders mode for a personal account.
+   This one-time choice is also required after upgrading; it is not per-send approval.
 
 Never paste a Bridge password into chat or commit it to Git. Credentials belong
 only in the local Tkinter setup window, never in dashboard/MCP arguments,
@@ -137,7 +140,7 @@ node scripts/configure-codex.mjs
 It generates **only** this folder's ignored `.codex/config.toml`, using absolute
 paths for this checkout. It refuses to overwrite an existing configuration. The
 reviewable template is [mcp-config.example.toml](mcp-config.example.toml).
-The current starter template enables all **61 records tools and 8 mail tools**,
+The current starter template enables all **66 records tools and 8 mail tools**,
 including workspace settings, reusable templates, campaigns, equipment tracking,
 publication previews, private exports, county contact/progress tools and
 source-linked deadline tracking. The tool allowlists are checked against the
@@ -167,10 +170,11 @@ client's account, permissions and availability are separate.
 ### Upgrading an existing assistant configuration
 
 The original 0.6.0 configuration template enabled only 20 records tools. Its
-records server now exposes 61 tools, but an old host `enabled_tools` allowlist
+records server now exposes 66 tools, but an old host `enabled_tools` allowlist
 hides later additions such as workspace, template, campaign, destination,
 equipment, deadline, county-contact, MA review and source/guide tools. A working
 dashboard or successful server restart does not correct an old allowlist.
+The five new mailbox privacy/cleanup tools are listed in [UPGRADING.md](UPGRADING.md).
 
 1. Update to the [current source](INSTALL.md#three-steps), which includes the
    complete current [configuration template](mcp-config.example.toml).
@@ -228,7 +232,8 @@ An operator may subsequently delegate specific sends and reply handling to the
 assistant; describe the recipients, scope and fee limits explicitly. The assistant
 can use CivicRelay's tools within that authorization, subject to its own host's
 permissions. Request preparation does not send mail. The owner must enroll and
-enable their own dedicated mailbox locally before a send is possible.
+enable their own mail connection locally before a send is possible. Mail reads
+also require the reviewed folder/history scope described above.
 
 Other assistant clients need local STDIO MCP support and their own equivalent
 configuration for both entry points. The Codex TOML is not a universal client
