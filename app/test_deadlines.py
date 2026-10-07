@@ -199,7 +199,8 @@ class DeadlineTests(unittest.TestCase):
     def test_partial_sync_unassigned_and_saved_audit(self):
         c=self.case('WI');m=self.mail(c);m['case_id']=None;self.db.put('mail',m['id'],m)
         self.db.put('sync','INBOX',{'folder':'INBOX','at':NOW.timestamp(),'more':True})
-        r=self.s.dispatch('desk_get_deadlines',{})
+        scope={'configured':True,'id':'0'*32,'import_history':True,'folders':{'INBOX':{'remote_folder':'INBOX','uid_validity':m['uid_validity'],'minimum_uid':0}}}
+        with patch('mail_scope.read',return_value=scope):r=self.s.dispatch('desk_get_deadlines',{})
         self.assertTrue(r['mail_sync_incomplete']);self.assertEqual(r['unassigned_incoming'],1)
         self.save(c,next_kind='follow_up',next_date='2026-09-22',next_basis='First synthetic reminder.')
         self.save(c,next_date='2026-09-25',next_basis='Rescheduled synthetic reminder.')

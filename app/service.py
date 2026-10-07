@@ -13,6 +13,8 @@ import bridge
 import connector
 import intake
 import mailbox
+import mail_scope
+import mail_privacy
 import equipment
 import general
 import send_state
@@ -50,9 +52,9 @@ ARGUMENTS |= {
  'desk_list_campaigns':set(), 'desk_save_campaign':{'campaign_id','revision','name','description','template_id','date_start','date_end','targets'},
  'desk_create_request':{'campaign_id','template_id','target_id','agency','values'},
  'desk_save_request_progress':{'case_id','revision','response_stage','response_message_id','coverage','note','fee_note','procedure_note','deadline_date','deadline_kind','deadline_source','deadline_basis','deadline_checked_date'},
-} | integrations.ARGUMENTS | deadlines.ARGUMENTS | contacts.ARGUMENTS | ma_follow_up.ARGUMENTS | public_sources.ARGUMENTS | state_guides.ARGUMENTS
+} | integrations.ARGUMENTS | deadlines.ARGUMENTS | contacts.ARGUMENTS | ma_follow_up.ARGUMENTS | public_sources.ARGUMENTS | state_guides.ARGUMENTS | mail_privacy.ARGUMENTS
 READ_ONLY={'desk_status','desk_list_cases','desk_get_case','desk_get_workflow','desk_list_messages','desk_get_intake','desk_get_equipment_campaign',
-           'desk_get_workspace','desk_list_templates','desk_get_template','desk_preview_template','desk_export_template','desk_list_campaigns'} | integrations.READ_ONLY | deadlines.READ_ONLY | contacts.READ_ONLY | ma_follow_up.READ_ONLY | public_sources.READ_ONLY | state_guides.READ_ONLY
+           'desk_get_workspace','desk_list_templates','desk_get_template','desk_preview_template','desk_export_template','desk_list_campaigns'} | integrations.READ_ONLY | deadlines.READ_ONLY | contacts.READ_ONLY | ma_follow_up.READ_ONLY | public_sources.READ_ONLY | state_guides.READ_ONLY | mail_privacy.READ_ONLY
 
 STATUS_LABELS={'none':'No prepared request','routing':'Routing needed','draft':'Draft',
  'waiting':'Awaiting reply','new':'New reply','attention':'Action needed',
@@ -82,7 +84,10 @@ class Service:
         if c.get('general_campaign_id'):return c['base']
         return next((x for x in self.catalog['cases'] if x['id']==c['base']['id']),None)
     def mails(self,case_id=None):
-        return sorted([m for m in self.db.all('mail') if case_id is None or m.get('case_id')==case_id],key=lambda m:(m['synced_at'],m['id']),reverse=True)
+        messages=self.db.all('mail')
+        if not messages:return []
+        scope=mail_scope.read(self.mail_store)
+        return sorted([m for m in messages if (case_id is None or m.get('case_id')==case_id) and mail_scope.visible(scope,m)],key=lambda m:(m['synced_at'],m['id']),reverse=True)
     def view_case(self,c,allmail=None):
         mails=[m for m in (allmail if allmail is not None else self.mails()) if m.get('case_id')==c['id']]
         unread=[m for m in mails if m['folder']=='INBOX' and not m.get('read_in_desk')]
@@ -109,6 +114,7 @@ class Service:
         return {'catalog':{**self.catalog,'cases':summaries},
                 'unassigned':[{k:v for k,v in m.items() if k not in ('body','attachments','raw_blob_id')} for m in messages if not m.get('case_id')][:200],
                 'unassigned_total':sum(not m.get('case_id') for m in messages),'sync':self.db.all('sync'),
+                'mail_privacy':mail_privacy.overview(self),
                 'private_storage':str(self.db.root),'email':connector.account_summary(self.mail_store).get('email') or '',
                 'workspace':workspace,'equipment_campaign':equipment.overview(self),'deadlines':deadlines.overview(self),
                 'destinations':integrations.list_destinations(self)['destinations']}
@@ -137,6 +143,8 @@ class Service:
     def message(self,key):
         m=self.db.get('mail',key)
         if not m:raise ConnectorError('Sync and select a saved message first.')
+        if not m.get('case_id') and not mail_scope.visible(mail_scope.read(self.mail_store),m):
+            raise ConnectorError('This imported message is hidden by mail privacy scope. Review Settings > Mail privacy for local cleanup or an explicit scoped history import.')
         return m
     def message_listing(self,args):
         limit=connector.integer(args.get('limit',50),1,100)
@@ -180,6 +188,7 @@ class Service:
                 elif state!='draft':c['stage']='attention'
             self.save(c)
     def _dispatch(self,name,args):
+        if name in mail_privacy.ARGUMENTS:return mail_privacy.dispatch(self,name,args)
         if name=='desk_get_state_guide':return state_guides.get_guide(self,args.get('state'))
         if name in public_sources.ARGUMENTS:return public_sources.dispatch(self,name,args)
         if name in ma_follow_up.ARGUMENTS:return ma_follow_up.dispatch(self,name,args)
@@ -209,7 +218,7 @@ class Service:
         if name=='desk_save_equipment_progress':return equipment.update_request(self,args)
         if name=='desk_status':
             s=connector.dispatch('proton_status',{},self.mail_store)
-            return {'connector':s,'private_storage':str(self.db.root),'catalog_requests':len(self.catalog['cases']),'tooling_version':'0.6.1',
+            return {'connector':s,'private_storage':str(self.db.root),'catalog_requests':len(self.catalog['cases']),'tooling_version':'0.7.0',
                     'dashboard_url':'http://127.0.0.1:8766/','issue_repository':intake.REPOSITORY,
                     'approval':'No CivicRelay per-action approval dialogs; host permissions remain separate.',
                     'requires_desktop_confirmation':False,
@@ -230,6 +239,8 @@ class Service:
                     'equipment_campaign':{'id':equipment.ID,'categories':equipment.CATEGORIES,'phases':equipment.PHASES,
                         'policy':equipment.POLICY,'tools':['desk_get_equipment_campaign','desk_create_equipment_request','desk_save_equipment_state','desk_save_equipment_progress']},
                     'deadline_tools':['desk_get_deadlines','desk_save_deadline_tracking'],
+                    'mail_privacy_tools':list(mail_privacy.ARGUMENTS),
+                    'mail_privacy_policy':'Read desk_get_mail_scope first. Missing scope blocks remote reads. Scope changes and local cleanup require explicit user direction and exact preview digests. Use custom folders for a personal account. A UIDVALIDITY change blocks import; never silently rescan history. Case-linked local evidence is preserved.',
                     'ma_follow_up_tools':list(ma_follow_up.ARGUMENTS),
                     'state_guides':{'tool':'desk_get_state_guide','automatic_on_state_selection':True,'default_collapsed':True,'policy':'Read available state guides before state-specific work. Dashboard shows them automatically without opening the panel. No guide does not mean no rules.'},
                     'public_source_tools':list(public_sources.ARGUMENTS),
@@ -292,19 +303,20 @@ class Service:
                'created_at':time.time(),'note':'Custodian-specific copy; narrow the request text before sending.'}
             self.save(c);return {'case':self.view_case(c)}
         if name=='desk_sync_mail':
+            scope=mail_scope.read(self.mail_store,required=True)
             self.reconcile_sends();settings=self.settings();outgoing=[]
             for c in self.db.all('case'):
                 for d in c['drafts']:
                     draft=self.mail_store.get_draft(d)
                     if draft['state']!='draft':outgoing.append((draft['message_id'],c['id']))
-            results=[mailbox.sync_folder(settings,self.db,f,outgoing) for f in ('INBOX','Sent')]
+            results=[mailbox.sync_folder(settings,self.db,f,outgoing,scope) for f in scope['folders']]
             return {'folders':results,'new_headers':sum(x['new_headers'] for x in results),'message_bodies_read':0,'messages_sent':0}
         if name in ('desk_read_message','desk_capture_attachments'):
             m=self.message(args.get('message_id'))
             if name=='desk_capture_attachments' and not m.get('case_id'):raise ConnectorError('Assign this message to a request before capturing records.')
             if name=='desk_read_message' and m.get('body_loaded'):return {'message':self.with_body(m),'untrusted_email_content':True}
             if name=='desk_capture_attachments' and m.get('captured'):return {'artifacts':[self.db.get('artifact',i) for i in m['artifact_ids']],'already_captured':True}
-            raw=mailbox.read_raw(self.settings(),m);parsed=bridge.parse_message(raw)
+            raw=mailbox.read_raw(self.settings(),m,mail_scope.read(self.mail_store,required=True));parsed=bridge.parse_message(raw)
             self.db.put('body',m['id'],{'id':m['id'],'body':parsed['body']})
             m.update(body_truncated=parsed['body_truncated'],attachments=parsed['attachments'],body_loaded=True)
             self.db.put('mail',m['id'],m)

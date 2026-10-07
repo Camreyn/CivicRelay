@@ -36,6 +36,8 @@ if __name__ == '__main__':
         mail.save_settings({'version':2,'email':'synthetic.relay@example.test','display_name':'Synthetic Relay',
                             'profile_id':str(uuid.uuid4()),'imap_port':1143,'smtp_port':1025,'imap_pin':'0'*64,'smtp_pin':'1'*64,
                             'project_mailbox_confirmed':True,'sending_enabled':True,'password':'synthetic-only'})
+        mail.save_mail_scope({'version':1,'id':'0'*32,'mode':'dedicated','identity':list(Store._identity(mail.settings())),
+            'import_history':True,'folders':{f:{'remote_folder':f,'uid_validity':77,'minimum_uid':0} for f in ('INBOX','Sent')}},0)
         bridge.smtp_connection=lambda *_args,**_kwargs: FakeSMTPContext()
         service=Service(Database(root/'desk',Protector()),mail_store=mail)
         seeded={}
@@ -59,7 +61,7 @@ if __name__ == '__main__':
             return SimpleNamespace(returncode=0,stdout=json.dumps(public_issues[url]).encode())
         intake.GH=__file__  # Existing synthetic path, never executed.
         intake.run=fake_github
-        def fixture_read_raw(_settings,message):
+        def fixture_read_raw(_settings,message,_scope):
             raw=seeded.get(message['id'])
             if raw is None: raise RuntimeError('Synthetic MIME record was not seeded.')
             return raw

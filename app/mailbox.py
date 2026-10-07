@@ -7,6 +7,7 @@ import re
 import time
 import uuid
 import bridge
+import mail_scope
 from secure_store import ConnectorError
 
 MAX_RAW=20*1024*1024
@@ -26,7 +27,7 @@ def thread_case(message,messages,outgoing):
     if message.get('folder')=='Sent':hits.update(known.get(message.get('message_id'),set()))
     return next(iter(hits)) if len(hits)==1 else None
 
-def message_key(folder,validity,uid):return f'{folder}:{validity}:{uid}'
+def message_key(folder,validity,uid,remote_folder=None):return mail_scope.message_key(folder,validity,uid,remote_folder)
 
 def reconcile_threads(messages,outgoing):
     # Connected components propagate ambiguity as well as matches. New conflicting
@@ -66,21 +67,30 @@ def reconcile_threads(messages,outgoing):
             m.update(case_id=match,assignment='thread' if match else None,thread_conflict=conflict);changed.append(m)
     return changed
 
-def sync_folder(settings,db,folder,outgoing):
+def sync_folder(settings,db,folder,outgoing,scope=None):
+    target=mail_scope.entry(scope or {},folder)
+    remote=target['remote_folder']
     cursor=db.get('sync',folder,{})
     with bridge.imap_connection(settings) as con:
-        validity=bridge.select_readonly(con,folder)
-        epoch_changed=bool(cursor and cursor.get('uid_validity')!=validity)
-        last=cursor.get('last_uid',0) if cursor.get('uid_validity')==validity else 0
+        validity=mail_scope.select(con,scope,folder)
+        matching=cursor.get('uid_validity')==validity and cursor.get('remote_folder',folder)==remote
+        # A reviewed new scope/history choice may deliberately start over. Never
+        # infer permission to re-import from a changed UIDVALIDITY.
+        same_scope=cursor.get('mail_scope_id')==scope['id']
+        last=max(target['minimum_uid'],cursor.get('last_uid',0) if matching and same_scope else 0)
         status,result=con.uid('search',None,'UID',f'{last+1}:*')
         if status!='OK' or not result or len(result[0])>2*1024*1024:raise ConnectorError('Mailbox search failed or was too large.')
         rawids=result[0].split()
         if any(not re.fullmatch(rb'[0-9]+',i) for i in rawids):raise ConnectorError('Mailbox returned invalid message identifiers.')
         ids=sorted(set(int(x) for x in rawids if int(x)>last))
-        chosen=ids[:80]; existing=db.all('mail'); count=0
+        chosen=ids[:80]; existing=[m for m in db.all('mail') if mail_scope.visible(scope,m)]; count=0
         for uid in chosen:
-            key=message_key(folder,validity,uid)
-            if db.get('mail',key):
+            key=message_key(folder,validity,uid,remote)
+            saved=db.get('mail',key)
+            if saved:
+                if not mail_scope.visible(scope,saved):
+                    saved.update(remote_folder=remote,mail_scope_id=scope['id'])
+                    db.put('mail',key,saved);existing.append(saved)
                 last=uid;continue
             status,result=con.uid('fetch',str(uid),'(UID BODY.PEEK[HEADER.FIELDS (FROM TO CC SUBJECT DATE MESSAGE-ID IN-REPLY-TO REFERENCES REPLY-TO)]<0.32769>)')
             if status!='OK':raise ConnectorError('Mailbox changed during sync. Run the sync again.')
@@ -91,21 +101,29 @@ def sync_folder(settings,db,folder,outgoing):
                'reply_to':bridge.display(str(parsed.get('Reply-To','')),1000),
                'id':key,'folder':folder,'uid_validity':validity,'uid':uid,'synced_at':time.time(),
                'read_in_desk':folder=='Sent','body_loaded':False,'case_id':None,'assignment':None,'untrusted_email_content':True}
-            db.put('mail',key,m); existing.append(m);count+=1;last=uid
+            m.update(remote_folder=remote,mail_scope_id=scope['id'])
+            excluded=db.get('mail_exclusion',mail_scope.header_fingerprint(m))
+            if not excluded:
+                db.put('mail',key,m); existing.append(m);count+=1
+            last=uid
             # Persist per-message: an interrupted sync resumes without skipping unread UIDs.
-            db.put('sync',folder,{'folder':folder,'uid_validity':validity,'last_uid':last,'at':time.time(),'more':len(ids)>len(chosen)})
+            db.put('sync',folder,{'folder':folder,'remote_folder':remote,'mail_scope_id':scope['id'],'uid_validity':validity,'last_uid':last,'at':time.time(),'more':len(ids)>len(chosen)})
         for m in reconcile_threads(existing,outgoing):
             db.put('mail',m['id'],m)
             for a in db.all('artifact'):
                 if a['message_id']==m['id'] and a['case_id']!=m['case_id']:
                     a['case_id']=m['case_id'];db.put('artifact',a['id'],a)
-        cursor={'folder':folder,'uid_validity':validity,'last_uid':last,'at':time.time(),'more':len(ids)>len(chosen)}
+        cursor={'folder':folder,'remote_folder':remote,'mail_scope_id':scope['id'],'uid_validity':validity,'last_uid':last,'at':time.time(),'more':len(ids)>len(chosen)}
         db.put('sync',folder,cursor)
-        return {'folder':folder,'new_headers':count,'more':cursor['more'],'mailbox_epoch_changed':epoch_changed}
+        return {'folder':folder,'remote_folder':remote,'new_headers':count,'more':cursor['more'],'mailbox_epoch_changed':False}
 
-def read_raw(settings,message):
+def read_raw(settings,message,scope=None):
+    target=mail_scope.entry(scope or {},message['folder'])
+    if message.get('remote_folder',message['folder'])!=target['remote_folder']:
+        raise ConnectorError('Saved message is outside the current live folder scope. Previously saved bodies remain local; use Proton to inspect an out-of-scope original.')
+    mail_scope.check_uid(scope,message['folder'],message['uid_validity'],message['uid'])
     with bridge.imap_connection(settings) as con:
-        if bridge.select_readonly(con,message['folder'])!=message['uid_validity']:
+        if mail_scope.select(con,scope,message['folder'])!=message['uid_validity']:
             raise ConnectorError('Mailbox identity changed. Sync again and select a current message; old saved records remain private.')
         status,result=con.uid('fetch',str(message['uid']),'(UID RFC822.SIZE)')
         bridge.verify_uid(result,message['uid'])

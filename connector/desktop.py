@@ -19,12 +19,12 @@ def setup() -> None:
     root.geometry("820x660")
     frame = ttk.Frame(root, padding=24)
     frame.pack(fill="both", expand=True)
-    ttk.Label(frame, text="Enroll one dedicated CivicRelay mailbox", font=("Segoe UI", 15, "bold")).pack(anchor="w")
-    ttk.Label(frame, text="Choose a dedicated Proton Bridge address and a display name. Paste the NEW Bridge-generated password below, not your Proton account password.\n"
+    ttk.Label(frame, text="Enroll one CivicRelay mail connection", font=("Segoe UI", 15, "bold")).pack(anchor="w")
+    ttk.Label(frame, text="Choose a Proton Bridge address and a display name. Paste the NEW Bridge-generated password below, not your Proton account password.\n"
               "Credentials stay on this PC, encrypted for your Windows user. Nothing is sent by setup.\n"
               "Mail later provided to the assistant is processed outside Proton by OpenAI.", wraplength=750).pack(anchor="w", pady=(12, 16))
     fields = {}
-    for label, key, default in (("Dedicated email / Bridge username", "email", ""),
+    for label, key, default in (("Email / Bridge username", "email", ""),
                                 ("Sender display name", "display_name", ""),
                                 ("Bridge-generated password", "password", ""),
                                 ("Local IMAP port", "imap_port", "1143"),
@@ -38,9 +38,9 @@ def setup() -> None:
             password_entry = entry
     isolated = tk.BooleanVar(value=False)
     sending = tk.BooleanVar(value=False)
-    ttk.Checkbutton(frame, variable=isolated, text="I confirm this Bridge login is isolated to this dedicated mailbox (separate account or split-address mode).").pack(anchor="w", pady=(18, 8))
+    ttk.Checkbutton(frame, variable=isolated, text="I will restrict mail access in Settings > Mail privacy. Personal accounts require custom CivicRelay folders.").pack(anchor="w", pady=(18, 8))
     ttk.Checkbutton(frame, variable=sending, text="Enable sending. Requested sends proceed without a separate CivicRelay confirmation dialog.").pack(anchor="w", pady=4)
-    ttk.Label(frame, text="Mailbox isolation is your confirmation; IMAP cannot independently prove it.\n"
+    ttk.Label(frame, text="Mail reads are blocked until a folder/history scope is previewed and applied in the dashboard.\n"
               "Host is fixed to 127.0.0.1. STARTTLS is mandatory.\n"
               "You will confirm the local TLS fingerprints before the password is used.\n"
               "Existing mailbox history locks its identity: setup cannot switch it to another account.\n"
@@ -68,7 +68,7 @@ def setup() -> None:
         fields["password"].set("")
         status.set("Saved securely. IMAP and SMTP authenticated. No messages read or sent. You can close this window.")
         button.state(["!disabled"])
-        messagebox.showinfo("Connector configured", "The Bridge connection works and credentials were saved with Windows DPAPI.\n\nNo messages were read or sent. Restart the MCP connection in Codex to activate the new tools.", parent=root)
+        messagebox.showinfo("Connector configured", "The Bridge connection works and credentials were saved with Windows DPAPI.\n\nNo messages were read or sent. Open CivicRelay > Settings > Mail privacy to select folders and a starting point. Restart the assistant tool connections after an upgrade.", parent=root)
 
     def trust(settings):
         text = ("Trust these local Bridge TLS certificates?\n\n"
@@ -94,7 +94,7 @@ def setup() -> None:
 
     def connect():
         if not isolated.get():
-            messagebox.showwarning("Dedicated mailbox required", "Confirm mailbox isolation before connecting. Do not enroll a combined personal inbox.", parent=root)
+            messagebox.showwarning("Mailbox scope required", "Confirm the mail privacy requirement. Personal accounts must use custom CivicRelay folders in Settings > Mail privacy, never dedicated-account mode.", parent=root)
             return
         try:
             email = address(fields["email"].get().strip())
@@ -110,7 +110,7 @@ def setup() -> None:
             if not 1 <= len(settings["password"]) <= 512:
                 raise ConnectorError("Enter the current Bridge-generated password.")
         except (ConnectorError, ValueError):
-            messagebox.showwarning("Check settings", "Enter a plain dedicated email, display name, current Bridge-generated password, and valid local ports (1024-65535).", parent=root)
+            messagebox.showwarning("Check settings", "Enter a plain email, display name, current Bridge-generated password, and valid local ports (1024-65535).", parent=root)
             return
         pending["settings"] = settings
         button.state(["disabled"])

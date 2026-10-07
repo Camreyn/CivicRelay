@@ -15,7 +15,7 @@ import uuid
 import bridge
 from secure_store import ConnectorError, SendPreflightError, Store, canonical
 
-VERSION = "0.3.0"
+VERSION = "0.7.0"
 PROJECT_EMAIL = "CivicResultMaps@proton.me"
 LEGACY_DISPLAY_NAME = "CivicResultMaps"
 FOLDERS = ("INBOX", "Sent")
@@ -90,7 +90,7 @@ def validate_settings(settings: dict) -> dict:
         if not isinstance(settings.get(key), str) or not re.fullmatch(r"[0-9a-f]{64}", settings[key]):
             raise ConnectorError("TLS pin missing. Re-enroll Bridge in local setup.")
     if settings.get("project_mailbox_confirmed") is not True:
-        raise ConnectorError("Project mailbox isolation must be confirmed in local setup.")
+        raise ConnectorError("The mail privacy requirement must be confirmed in local setup.")
     if type(settings.get("sending_enabled")) is not bool:
         raise ConnectorError("Invalid send policy. Run local setup.")
     if not isinstance(settings.get("password"), str) or not 1 <= len(settings["password"]) <= 512:
@@ -255,7 +255,7 @@ def valid_uuid(value) -> str:
 ARGUMENTS = {
     "proton_status": set(), "proton_check_connection": set(),
     "proton_list_messages": {"folder", "limit", "before_uid"},
-    "proton_read_message": {"folder", "uid", "uid_validity"},
+    "proton_read_message": {"folder", "uid", "uid_validity", "mail_scope_id"},
     "proton_prepare_draft": {"to", "cc", "subject", "body", "in_reply_to", "references"},
     "proton_list_drafts": {"limit"}, "proton_get_draft": {"draft_id"},
     "proton_send_draft": {"draft_id", "expected_digest"},
@@ -263,6 +263,7 @@ ARGUMENTS = {
 
 
 def dispatch(name: str, arguments: dict, store: Store | None = None) -> dict:
+    import mail_scope
     if name not in ARGUMENTS or not isinstance(arguments, dict) or set(arguments) - ARGUMENTS[name]:
         raise ConnectorError("Unknown operation or unexpected arguments.")
     store = store or Store()
@@ -270,12 +271,13 @@ def dispatch(name: str, arguments: dict, store: Store | None = None) -> dict:
         store.guard_paths()
         summary = account_summary(store)
         configured = summary["configured"]
-        result = {"version": VERSION, **summary, "network_accessed": False}
+        result = {"version": VERSION, **summary, "network_accessed": False,
+                  "mail_scope": mail_scope.summary(store)}
         if configured:
             settings = validate_settings(store.settings())
             result.update(sending_enabled=settings["sending_enabled"],
                           imap_port=settings["imap_port"], smtp_port=settings["smtp_port"],
-                          mailbox_isolation="User-attested separate account or split-address mode; not independently verified by IMAP.",
+                          mailbox_isolation="Mail reads require a saved, previewed folder/UID boundary. Dedicated-account isolation remains an operator attestation, not independently verified by IMAP.",
                           confirmation="No CivicRelay per-action approval dialog.",
                           requires_desktop_confirmation=False)
             result["send_window"] = store.send_window(time.time())
@@ -284,6 +286,7 @@ def dispatch(name: str, arguments: dict, store: Store | None = None) -> dict:
     if name == "proton_check_connection":
         return bridge.check(settings)
     if name in ("proton_list_messages", "proton_read_message"):
+        scope = mail_scope.read(store, required=True)
         folder = arguments.get("folder", "INBOX")
         if folder not in FOLDERS:
             raise ConnectorError("Only the project INBOX and Sent folders are available.")
@@ -291,9 +294,11 @@ def dispatch(name: str, arguments: dict, store: Store | None = None) -> dict:
             before = arguments.get("before_uid")
             if before is not None:
                 integer(before, 1, 4294967295)
-            return bridge.list_messages(settings, folder, integer(arguments.get("limit", 10), 1, 20), before)
+            return bridge.list_messages(settings, folder, integer(arguments.get("limit", 10), 1, 20), before, scope)
+        if arguments.get('mail_scope_id') != scope['id']:
+            raise ConnectorError('Mail scope changed or its identity was omitted. List messages again and retain mail_scope_id before reading.')
         return bridge.read_message(settings, folder, integer(arguments.get("uid"), 1, 4294967295),
-                                   integer(arguments.get("uid_validity"), 1, 4294967295))
+                                   integer(arguments.get("uid_validity"), 1, 4294967295), scope)
     if name == "proton_prepare_draft":
         content = validate_content(arguments, settings["email"])
         draft_id = str(uuid.uuid4())

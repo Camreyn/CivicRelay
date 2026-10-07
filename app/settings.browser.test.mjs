@@ -8,6 +8,7 @@ import {chromium} from 'playwright';
 const origin = 'http://settings.test';
 const assets = new Map([
   ['/settings.js', ['text/javascript', await readFile(new URL('./static/settings.js', import.meta.url), 'utf8')]],
+  ['/mail-privacy.js', ['text/javascript', await readFile(new URL('./static/mail-privacy.js', import.meta.url), 'utf8')]],
   ['/settings.css', ['text/css', await readFile(new URL('./static/settings.css', import.meta.url), 'utf8')]],
   ['/style.css', ['text/css', await readFile(new URL('./static/style.css', import.meta.url), 'utf8')]],
 ]);

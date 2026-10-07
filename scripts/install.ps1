@@ -57,7 +57,7 @@ try {
     Write-Host 'CivicRelay core setup and synthetic checks completed.'
     Write-Host 'Next time, double-click Open CivicRelay.cmd. No terminal path settings are needed.'
     if ($mail) {
-        Write-Host 'MAIL STILL NEEDS YOU: open Proton Mail Bridge, sign in to your dedicated account, then use Open Proton Setup.cmd for FIRST-TIME enrollment only.'
+        Write-Host 'MAIL STILL NEEDS YOU: sign in to Proton Mail Bridge, then use Open Proton Setup.cmd for FIRST-TIME enrollment only. In CivicRelay Settings > Mail privacy, select custom folders for a personal account, or dedicated-account mode for an isolated address.'
         Write-Host 'Never repeat enrollment for an existing account just because you ran this installer. Enter passwords only in the local form.'
     }
     if ($codex) { Write-Host 'ASSISTANT: review .codex/config.toml, open this folder as a trusted project, and reconnect its two MCP servers. See README.md.' }

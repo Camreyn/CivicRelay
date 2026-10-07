@@ -38,6 +38,10 @@
 .settings-import input{max-width:240px}
 .settings-import input[type=file]{max-width:100%;font-size:13px}
 .settings-import button{font-size:13px;margin:0 8px 5px 0}
+.mail-privacy-form select{display:block;width:100%;max-width:560px;margin-top:5px;font-weight:400}
+.mail-privacy-form input{max-width:560px}
+.mail-privacy-form .mail-history-choice{display:flex;align-items:flex-start;gap:9px;font-weight:400}
+.mail-privacy-form .mail-history-choice input{width:auto;flex:none;margin:3px 0 0}
 .settings-result-dialog h2{font-size:21px;margin-bottom:12px}
 .settings-result-dialog[data-outcome=success]{border-top:4px solid #398b68}
 .settings-result-dialog[data-outcome=error]{border-top:4px solid #bd644c}

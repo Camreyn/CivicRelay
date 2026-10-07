@@ -11,6 +11,7 @@ manually collected documents as private until reviewed for publication.
 Fresh-install live stores remain outside the checkout:
 
 - `%LOCALAPPDATA%\CivicRelay\ProtonConnector\settings.dpapi`
+- `%LOCALAPPDATA%\CivicRelay\ProtonConnector\mail-scope.dpapi`
 - `%LOCALAPPDATA%\CivicRelay\ProtonConnector\drafts.sqlite3`
 - `%LOCALAPPDATA%\CivicRelay\RecordsDesk\records.sqlite3`
 - `%LOCALAPPDATA%\CivicRelay\RecordsDesk\Exports\`
@@ -90,6 +91,31 @@ an agency reply as consent to publish private information. Verify request
 eligibility; fees, declarations and channel changes need user authority beyond
 ordinary correspondence handling. Credential enrollment, mailbox isolation,
 sending enablement and TLS trust remain local setup decisions.
+
+## Mailbox selection and accidental imports
+
+Version 0.7.0 requires an explicit previewed folder/UID scope for **both** mail
+interfaces. The same encrypted `mail-scope.dpapi` boundary is checked by the desk
+and low-level connector; it is not just a UI filter. Personal accounts must use
+custom CivicRelay folders/labels. Dedicated mode exposes Inbox/Sent and still
+relies on the operator's assertion that the address is isolated. History is off
+by default; previews read only folder metadata. UIDVALIDITY changes stop import,
+never fall back to a historical rescan. Stop/restart all old processes after an
+upgrade; running old code does not enforce the new policy.
+
+Missing/out-of-scope unassigned imported mail is hidden from normal tools/UI,
+including cached bodies. Existing case-linked evidence remains local and visible;
+new remote body reads still require the active folder/UID boundary. The
+preview/digest-bound cleanup only removes unrelated local header/body imports,
+with rechecked evidence/draft-chain protection and atomic receipts. No Proton
+deletions or credential, draft, quota, case or artifact reset occurs. Header-hash
+exclusions suppress routine re-import. This is not forensic erasure of database
+pages, previous exports, backups or assistant transcripts. See [privacy and
+recovery](MAIL-PRIVACY.md) and [upgrade instructions](UPGRADING.md).
+
+Scope changes and cleanup need explicit user authority; an ordinary mail check
+or incoming email never grants it. Selection is not a security boundary against
+other processes with this Windows user's rights and Bridge credentials.
 
 ## Deadline evidence is not authority
 

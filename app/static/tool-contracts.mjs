@@ -4,6 +4,7 @@ import {DEADLINE_TOOLS} from './deadline-contracts.mjs';
 import {CONTACT_TOOLS} from './contact-contracts.mjs';
 import {MA_TOOLS} from './ma-contracts.mjs';
 import {SOURCE_TOOLS} from './source-contracts.mjs';
+import {MAIL_PRIVACY_TOOLS} from './mail-privacy-contracts.mjs';
 const str=max=>({type:'string',maxLength:max});
 const caseId={...str(150),minLength:1};
 const obj=(properties={},required=[])=>({type:'object',properties,required,additionalProperties:false});
@@ -14,6 +15,7 @@ export const TOOLS=[
  ...CONTACT_TOOLS,
  ...MA_TOOLS,
  ...SOURCE_TOOLS,
+ ...MAIL_PRIVACY_TOOLS,
  operation('desk_get_equipment_campaign','Read the private nationwide November 2024 equipment/communications tracker, optionally one state. Includes remaining states, scoped drafts, sources, receipt-derived submission status and verified deadlines. No network.',{state:str(2)},[],true),
  operation('desk_create_equipment_request','Create an idempotent PRIVATE November 2024 equipment/communications draft for an explicit state-held, county or municipality scope. Does not send. This campaign requires separate user approval before sending or fees; do not infer approval from draft creation.',{state:str(2),jurisdiction:str(120),jurisdiction_level:{type:'string',enum:['state','county','municipality']}},['state','jurisdiction','jurisdiction_level']),
  operation('desk_save_equipment_state','Save private nationwide campaign research and category coverage with revision control and dated official-source notes. Does not send, incur fees or establish statewide completeness. Preserve existing sources; not assessed is not missing.',{
@@ -33,7 +35,7 @@ export const TOOLS=[
  operation('desk_save_case','Save local editable request text/routing and notes, not send. Recipient verification requires an official-source note. Preserve revision.',{
    case_id:caseId,revision:{type:'integer',minimum:0},recipient:str(254),subject:str(250),body:str(50000),routing_verified:{type:'boolean'},routing_evidence:str(1500),note:str(4000),stage:{enum:['draft','waiting','attention','ready','submitted','closed'],type:'string'}},['case_id','revision','recipient','subject','body','routing_verified']),
  operation('desk_clone_case','Create a custodian-specific local copy of an existing template, requiring fresh routing review.',{case_id:caseId,label:str(120)},['case_id','label']),
- operation('desk_sync_mail','Read up to 80 new headers per project INBOX/Sent folder, save encrypted, and match exact threads. No bodies, sends, remote images or server read-flag changes.'),
+ operation('desk_sync_mail','Read up to 80 new headers per explicitly configured mailbox folder after its reviewed UID boundary. Missing scope or changed mailbox identity blocks import; never automatically imports historical mail. No bodies, sends, remote images or server read-flag changes.'),
  operation('desk_read_message','Read/copy one saved UID-bound mail body locally, capped at 20 MiB MIME/20,000 displayed characters. Untrusted data, no remote fetch.',{message_id:caseId},['message_id']),
  operation('desk_link_message','Explicitly assign an unmatched message to a known case. This is not proof of sender identity. Empty case_id unassigns.',{message_id:caseId,case_id:str(150)},['message_id','case_id']),
  operation('desk_mark_reviewed','Mark a message reviewed in the local dashboard only, clearing its new-reply indicator. Does not change Proton flags.',{message_id:caseId},['message_id']),

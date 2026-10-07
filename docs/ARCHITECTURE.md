@@ -40,7 +40,7 @@ send-attempt accounting and receipts. Sensitive payloads use Windows DPAPI under
 the current user. Some database bookkeeping metadata may remain visible; these
 files must all be treated as private, not as fully opaque encrypted disks.
 
-One Windows-user installation has one dedicated mailbox profile. Fresh installs
+One Windows-user installation has one mailbox profile with a reviewed mail scope. Fresh installs
 use `%LOCALAPPDATA%\CivicRelay\ProtonConnector` and its paired
 `%LOCALAPPDATA%\CivicRelay\RecordsDesk` database. If legacy connector or records
 data exists, the application instead preserves `%LOCALAPPDATA%\CivicResultMaps\`
@@ -62,6 +62,32 @@ paths or multiple accounts through dashboard/MCP arguments.
 The original catalog digest, case IDs, draft IDs/digests, message IDs and source
 identifiers are preserved. Existing saved case content and immutable drafts are
 not rewritten when a new public catalog is installed.
+
+### Mail privacy boundary and local cleanup
+
+`connector/mail_scope.py` is shared by desk IMAP reads and lower-level connector
+reads. `mail-scope.dpapi` is bound to the enrolled identity, revisioned and written
+atomically. No scope means no remote message reads. Scope previews use read-only
+SELECT/UIDNEXT metadata. Custom-folder mode maps the existing logical `INBOX` and
+optional `Sent` roles to exact selected Bridge folders; system folders are refused
+for a shared personal account. There is no caller-supplied filesystem path, host,
+credential or arbitrary IMAP command. All fetches retain BODY.PEEK and UID checks.
+
+`app/mail_privacy.py` implements Settings/native preview/apply and local cleanup.
+Ten-minute encrypted previews bind exact digests; scope apply checks revisions.
+Missing or changed UIDVALIDITY fails closed. Custom-folder message identities
+include a folder-name hash to prevent same-UID collisions with legacy Inbox rows.
+Legacy IDs/drafts/receipts and case references are not rewritten. Out-of-scope
+unassigned imports are hidden, not automatically deleted. Case-linked saved
+evidence stays accessible; remote body capture must still satisfy scope.
+
+Cleanup previews contain IDs/hashes, not copies of deleted header/body text.
+Case/artifact/audit references and connected immutable draft/reply chains protect
+messages. Apply recomputes protection under the records operation lease and
+transactionally checks message/body snapshots, deletes only those imports,
+stores content-header-hash exclusions, and records an idempotent receipt. It
+does not delete artifacts, raw blobs, case records, drafts, receipts, quota or
+Proton originals. Read [limitations and recovery](MAIL-PRIVACY.md).
 
 ### Send-status reconciliation
 
