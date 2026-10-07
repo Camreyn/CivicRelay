@@ -161,13 +161,19 @@ official routing and appropriate custodian review remain separate work.
 
 Before a reviewed send, inspect `desk_status.connector.send_window`. Its
 `ready`, `attempts_remaining` and `retry_after_seconds` describe the protected
-rolling 24-hour/60-second send ledger without contacting the mailbox or recording
+rolling 24-hour send ledger (default spacing 60 seconds) without contacting the mailbox or recording
 an attempt. Preflight and the atomic attempt claim enforce the same limits; failed
 preflight does not start a send. A countdown is only a local status refresh,
 never permission to queue or send automatically. Preflight errors
 explicitly marked `send_not_started: true` are distinct from unknown outcomes.
 Unmarked failures require inspecting the saved receipt and Proton Sent before
 considering another attempt; never infer success or failure from a lost response.
+
+Use `desk_get_send_limits` for current cap/spacing, bounds and revision. Only use
+`desk_save_send_limits` when the user explicitly authorizes changing those
+settings; a blocked send is not permission to raise a limit. Both mail interfaces
+enforce the same saved policy, and changes never reset attempt history or lift
+Proton restrictions. See [configuration and examples](SENDING-LIMITS.md).
 
 For replies, read the actual saved message and pass its local ID as
 `reply_message_id` when preparing. Never guess a thread by subject. Call

@@ -140,7 +140,7 @@ node scripts/configure-codex.mjs
 It generates **only** this folder's ignored `.codex/config.toml`, using absolute
 paths for this checkout. It refuses to overwrite an existing configuration. The
 reviewable template is [mcp-config.example.toml](mcp-config.example.toml).
-The current starter template enables all **66 records tools and 8 mail tools**,
+The current source's starter template enables all **68 records tools and 8 mail tools**,
 including workspace settings, reusable templates, campaigns, equipment tracking,
 publication previews, private exports, county contact/progress tools and
 source-linked deadline tracking. The tool allowlists are checked against the
@@ -170,11 +170,13 @@ client's account, permissions and availability are separate.
 ### Upgrading an existing assistant configuration
 
 The original 0.6.0 configuration template enabled only 20 records tools. Its
-records server now exposes 66 tools, but an old host `enabled_tools` allowlist
+records server now exposes 68 tools, but an old host `enabled_tools` allowlist
 hides later additions such as workspace, template, campaign, destination,
 equipment, deadline, county-contact, MA review and source/guide tools. A working
 dashboard or successful server restart does not correct an old allowlist.
 The five new mailbox privacy/cleanup tools are listed in [UPGRADING.md](UPGRADING.md).
+The unreleased sending-limit controls add `desk_get_send_limits` and
+`desk_save_send_limits`; see [limits and authority](SENDING-LIMITS.md).
 
 1. Update to the [current source](INSTALL.md#three-steps), which includes the
    complete current [configuration template](mcp-config.example.toml).

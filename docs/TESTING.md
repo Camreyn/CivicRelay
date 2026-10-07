@@ -1,5 +1,37 @@
 # Testing and verification limits
 
+## Configurable sending-limit coverage (unreleased)
+
+`connector/test_send_policy.py` covers default/read-only old-store behavior,
+raising and lowering limits, exact window/spacing boundaries, unchanged attempt
+history and uncertain states, stale/concurrent edits, current-policy rechecks
+after preflight, corrupt-policy rejection, and same-identity credential updates.
+`app/test_sending_limits.py` checks strict service arguments, unconfigured behavior,
+no network and no implicit sending enablement. Native MCP handshake tests exercise
+the getter and safe unconfigured save rejection; configuration tests verify both
+new native tools and unchanged host permission choices.
+
+`app/sending-limits.browser.test.mjs` starts a disposable real HTTP/service/store
+fixture with ten fictional attempts and all mail transports blocked. It checks
+Settings save/reload persistence, invalid input, preserved unsaved edits, stale
+revision rejection, lost-response recovery without retry, lower-cap enforcement,
+keyboard tabs and a synthetic screenshot. No real Proton limit or delivery is
+tested. This is included in `npm.cmd run test:browser`.
+
+Local verification on 2026-10-07: 68 Node tests, 196 app Python tests and 64
+connector Python tests passed (328 total), plus all 12 browser workflows.
+The first full run exposed a new test-module naming collision; unique test names
+fixed discovery and the Python/docs groups then passed. No live mailbox or
+provider-account limit was tested.
+
+| Feature boundary | Result and evidence |
+| --- | --- |
+| Settings renders | Synthetic screenshot reviewed; no browser page errors |
+| Settings → HTTP | Exact cap, spacing and revision sent; invalid inputs blocked |
+| HTTP → private store | Saved policy persists after reload; prior ten attempts retained |
+| Store → send enforcement | Raised/lowered caps, cooldown boundaries and changed-policy final claims tested |
+| Response → Settings | Updated usage displayed; stale/lost responses preserve edits without retry |
+
 ## User story under test
 
 A fresh Windows user starts blank, configures a workspace, creates and versions
@@ -43,7 +75,7 @@ preserved host settings. It is not a fresh-VM/UAC or live-account test.
 | Encryption/storage guards | Windows DPAPI round trips using synthetic values, tamper/link/repository-path rejection | Not a third-party cryptographic/security audit |
 | Send → receipt | Direct send without Tkinter/confirmation arguments, mocked SMTP, exact digest, quota, concurrency, uncertain outcomes and duplicate prevention | No real message sent; delivery is not tested |
 | Intake → public issue/export | Direct actions without approval modules, mocked GitHub, exact form/snapshot identity, private-link guards and uncertain-publication handling; synthetic ZIP byte checks | No public issue or real-record export created by tests |
-| Docs → implementation | Local links/npm commands checked; 74-tool reference compared to source schemas | External pages and prose still need human review |
+| Docs → implementation | Local links/npm commands checked; 76-tool reference compared to source schemas | External pages and prose still need human review |
 | Fresh workspace → templates → campaign | Synthetic strict-schema, safe-rendering, immutable-version, private-field, idempotency, target retention and linked-evidence tests | Literal template text still needs privacy and procedural review |
 | Configured destination → exact preview → receipt | Synthetic destination-revision invalidation, exact repository URL verification, unresolved-attempt locks and local case ZIP checks | Remote form schema/labels are not fetched or validated automatically |
 | Account profile → storage/draft | Synthetic v1 compatibility, fresh v2 identities, display-name/header and profile digest binding, ambiguous-store refusal | No new real account is enrolled or used by tests |
@@ -88,7 +120,7 @@ suite. It covers the configuration a new user actually generates, not just
 tools advertised directly by the servers:
 
 - Parses generated TOML with Python's standard-library `tomllib`; requires all
-  66 records and 8 mail tools exactly once. Negative fixtures detect missing,
+  68 records and 8 mail tools exactly once. Negative fixtures detect missing,
   duplicate, stale or disabled tools and a disabled server.
 - Checks absolute local entry points and the existing host permission defaults
   and per-tool overrides without opening or changing any real `.codex` file.

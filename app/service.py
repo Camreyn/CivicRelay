@@ -15,6 +15,7 @@ import intake
 import mailbox
 import mail_scope
 import mail_privacy
+import sending_limits
 import equipment
 import general
 import send_state
@@ -52,9 +53,9 @@ ARGUMENTS |= {
  'desk_list_campaigns':set(), 'desk_save_campaign':{'campaign_id','revision','name','description','template_id','date_start','date_end','targets'},
  'desk_create_request':{'campaign_id','template_id','target_id','agency','values'},
  'desk_save_request_progress':{'case_id','revision','response_stage','response_message_id','coverage','note','fee_note','procedure_note','deadline_date','deadline_kind','deadline_source','deadline_basis','deadline_checked_date'},
-} | integrations.ARGUMENTS | deadlines.ARGUMENTS | contacts.ARGUMENTS | ma_follow_up.ARGUMENTS | public_sources.ARGUMENTS | state_guides.ARGUMENTS | mail_privacy.ARGUMENTS
+} | integrations.ARGUMENTS | deadlines.ARGUMENTS | contacts.ARGUMENTS | ma_follow_up.ARGUMENTS | public_sources.ARGUMENTS | state_guides.ARGUMENTS | mail_privacy.ARGUMENTS | sending_limits.ARGUMENTS
 READ_ONLY={'desk_status','desk_list_cases','desk_get_case','desk_get_workflow','desk_list_messages','desk_get_intake','desk_get_equipment_campaign',
-           'desk_get_workspace','desk_list_templates','desk_get_template','desk_preview_template','desk_export_template','desk_list_campaigns'} | integrations.READ_ONLY | deadlines.READ_ONLY | contacts.READ_ONLY | ma_follow_up.READ_ONLY | public_sources.READ_ONLY | state_guides.READ_ONLY | mail_privacy.READ_ONLY
+           'desk_get_workspace','desk_list_templates','desk_get_template','desk_preview_template','desk_export_template','desk_list_campaigns'} | integrations.READ_ONLY | deadlines.READ_ONLY | contacts.READ_ONLY | ma_follow_up.READ_ONLY | public_sources.READ_ONLY | state_guides.READ_ONLY | mail_privacy.READ_ONLY | sending_limits.READ_ONLY
 
 STATUS_LABELS={'none':'No prepared request','routing':'Routing needed','draft':'Draft',
  'waiting':'Awaiting reply','new':'New reply','attention':'Action needed',
@@ -188,6 +189,7 @@ class Service:
                 elif state!='draft':c['stage']='attention'
             self.save(c)
     def _dispatch(self,name,args):
+        if name in sending_limits.ARGUMENTS:return sending_limits.dispatch(self,name,args)
         if name in mail_privacy.ARGUMENTS:return mail_privacy.dispatch(self,name,args)
         if name=='desk_get_state_guide':return state_guides.get_guide(self,args.get('state'))
         if name in public_sources.ARGUMENTS:return public_sources.dispatch(self,name,args)
@@ -225,6 +227,7 @@ class Service:
                     'sync':self.db.all('sync'),'automatic_polling':False}
         if name=='desk_list_cases':return self.listing()
         if name=='desk_get_workflow':
+            limits=self.mail_store.get_send_limits(time.time())
             return {'states':self.catalog['states'],'status_labels':STATUS_LABELS,'intake':self.catalog['issue'],
                     'catalog_sha256':self.catalog['sha256'],'sender':connector.account_summary(self.mail_store).get('email') or '',
                     'general_workflow':{
@@ -240,6 +243,8 @@ class Service:
                         'policy':equipment.POLICY,'tools':['desk_get_equipment_campaign','desk_create_equipment_request','desk_save_equipment_state','desk_save_equipment_progress']},
                     'deadline_tools':['desk_get_deadlines','desk_save_deadline_tracking'],
                     'mail_privacy_tools':list(mail_privacy.ARGUMENTS),
+                    'sending_limit_tools':list(sending_limits.ARGUMENTS),
+                    'sending_limit_policy':'Local rolling-24-hour attempt cap and spacing are configurable only with explicit user authority to change settings. An ordinary send request or quota block is not authority to raise them. History is never reset. Proton restrictions are independent. No automatic retry or sending queue.',
                     'mail_privacy_policy':'Read desk_get_mail_scope first. Missing scope blocks remote reads. Scope changes and local cleanup require explicit user direction and exact preview digests. Use custom folders for a personal account. A UIDVALIDITY change blocks import; never silently rescan history. Case-linked local evidence is preserved.',
                     'ma_follow_up_tools':list(ma_follow_up.ARGUMENTS),
                     'state_guides':{'tool':'desk_get_state_guide','automatic_on_state_selection':True,'default_collapsed':True,'policy':'Read available state guides before state-specific work. Dashboard shows them automatically without opening the panel. No guide does not mean no rules.'},
@@ -258,7 +263,7 @@ class Service:
                         {'task':'Publish one reviewed issue or verify/link a manually submitted issue','tools':['desk_publish_intake','desk_link_issue']},
                         {'task':'Export originals for separate file review; no automatic upload','tools':['desk_export_package']},
                         {'task':'Record an existing agency portal receipt; does not submit a portal','tools':['desk_record_portal']}],
-                    'limits':{'header_sync_per_folder':80,'send_attempts_per_day':10,'minimum_send_interval_seconds':60,
+                    'limits':{'header_sync_per_folder':80,'send_attempts_per_day':limits['max_attempts_per_24h'],'minimum_send_interval_seconds':limits['minimum_interval_seconds'],
                               'body_preview_characters':20000,'automatic_polling':False},
                     'requires_desktop_confirmation':False,
                     'human_only':['Agency-portal submission and reviewed private-attachment upload are not implemented by this connector'],

@@ -134,6 +134,7 @@ class Store:
     MAX_SEND_ATTEMPTS = 10
     SEND_WINDOW_SECONDS = 86400
     MINIMUM_SEND_INTERVAL_SECONDS = 60
+    SEND_LIMIT_BOUNDS = {"max_attempts_per_24h": (1, 1000), "minimum_interval_seconds": (1, 3600)}
     def __init__(self, root: Path | None = None, protector: Any = None):
         # Explicit overrides are for in-process tests, never exposed by CLI/MCP.
         self.root = private_root() if root is None else root
@@ -356,19 +357,20 @@ class Store:
         return records
 
     @classmethod
-    def _send_window_for_records(cls, records: list[dict], now: float) -> dict:
+    def _send_window_for_records(cls, records: list[dict], now: float, limits: dict | None = None) -> dict:
         now = cls._timestamp(now)
+        limits = limits or cls._default_send_limits()
+        maximum, interval = limits["max_attempts_per_24h"], limits["minimum_interval_seconds"]
         timestamps = sorted(cls._timestamp(record["attempted_at"])
                             for record in records if record["attempted_at"] is not None)
         active = [timestamp for timestamp in timestamps if timestamp > now - cls.SEND_WINDOW_SECONDS]
         latest = max(timestamps) if timestamps else None
-        cooldown_at = latest + cls.MINIMUM_SEND_INTERVAL_SECONDS if latest is not None else now
+        cooldown_at = latest + interval if latest is not None else now
         quota_at = now
-        if len(active) >= cls.MAX_SEND_ATTEMPTS:
-            # More than ten recent records can exist after a clock adjustment or
-            # an older implementation. Expire enough of the oldest records to
+        if len(active) >= maximum:
+            # A lowered limit can be below the current usage. Expire enough records to
             # leave space for this one prospective attempt.
-            quota_at = active[len(active) - cls.MAX_SEND_ATTEMPTS] + cls.SEND_WINDOW_SECONDS
+            quota_at = active[len(active) - maximum] + cls.SEND_WINDOW_SECONDS
         next_attempt_at = max(now, cooldown_at, quota_at)
         ready = next_attempt_at <= now
         if ready:
@@ -384,28 +386,99 @@ class Store:
             "daily_limit": "Wait for an earlier send attempt to leave the rolling daily window.",
         }
         return {"ready": ready, "checked_at": now, "next_attempt_at": next_attempt_at,
-                "retry_after_seconds": retry_after, "attempts_remaining": max(0, cls.MAX_SEND_ATTEMPTS - len(active)),
-                "attempts_used": len(active), "max_attempts": cls.MAX_SEND_ATTEMPTS,
+                "retry_after_seconds": retry_after, "attempts_remaining": max(0, maximum - len(active)),
+                "attempts_used": len(active), "max_attempts": maximum,
                 "window_seconds": cls.SEND_WINDOW_SECONDS,
-                "minimum_interval_seconds": cls.MINIMUM_SEND_INTERVAL_SECONDS,
+                "minimum_interval_seconds": interval,
                 "reason": reason, "message": messages[reason]}
+
+    @classmethod
+    def _default_send_limits(cls) -> dict:
+        return {"revision": 0, "max_attempts_per_24h": cls.MAX_SEND_ATTEMPTS,
+                "minimum_interval_seconds": cls.MINIMUM_SEND_INTERVAL_SECONDS, "changed_at": None}
+
+    @classmethod
+    def _validate_send_limits(cls, values: dict) -> None:
+        for key, (minimum, maximum) in cls.SEND_LIMIT_BOUNDS.items():
+            if type(values.get(key)) is not int or not minimum <= values[key] <= maximum:
+                raise ConnectorError(f"{key} must be a whole number from {minimum} to {maximum}.")
+
+    def _read_send_limits(self, db: sqlite3.Connection) -> dict:
+        # An old/unconfigured database has no policy table. Never create one on a read.
+        if not db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='send_limits'").fetchone():
+            return self._default_send_limits()
+        try:
+            rows = db.execute("SELECT revision,payload FROM send_limits").fetchall()
+            if len(rows) != 1:
+                raise ValueError()
+            value = self.protector.unprotect(rows[0]["payload"])
+            if (type(value.get("version")) is not int or value["version"] != 1 or
+                    type(value.get("revision")) is not int or value["revision"] < 1 or
+                    value["revision"] != rows[0]["revision"]):
+                raise ValueError()
+            self._validate_send_limits(value)
+            self._timestamp(value["changed_at"])
+            identity = list(self._identity(self.settings()))
+            saved = value.get("identity")
+            # Preserve the policy during the already-supported same-identity v1 -> v2 enrollment.
+            if saved != identity and not (isinstance(saved, list) and len(saved) == 3 and
+                                         saved[2] is None and saved[:2] == identity[:2]):
+                raise ValueError()
+            return {key: value[key] for key in self._default_send_limits()}
+        except Exception as error:
+            raise ConnectorError("Saved sending limits could not be verified. No send or settings change was made.") from error
+
+    def _send_limits_view(self, limits: dict, records: list[dict], now: float) -> dict:
+        return {**limits, "window_seconds": self.SEND_WINDOW_SECONDS,
+                "defaults": self._default_send_limits(),
+                "bounds": {key: {"minimum": low, "maximum": high}
+                           for key, (low, high) in self.SEND_LIMIT_BOUNDS.items()},
+                "send_window": self._send_window_for_records(records, now, limits)}
+
+    def get_send_limits(self, now: float) -> dict:
+        """Local-only policy and usage; never create a store, connect, or reserve a send."""
+        self._timestamp(now)
+        self.guard_paths()
+        if not (self.root / "drafts.sqlite3").exists():
+            return self._send_limits_view(self._default_send_limits(), [], now)
+        with self.database(readonly=True) as db:
+            db.execute("BEGIN")
+            return self._send_limits_view(self._read_send_limits(db), self._decoded_records(db), now)
+
+    def save_send_limits(self, revision: int, maximum: int, interval: int, now: float) -> dict:
+        """Explicit local policy edit, serialized with final send claims; no history reset."""
+        if type(revision) is not int or revision < 0:
+            raise ConnectorError("Sending limits revision must be a nonnegative whole number.")
+        values = {"max_attempts_per_24h": maximum, "minimum_interval_seconds": interval}
+        self._validate_send_limits(values)
+        self._timestamp(now)
+        identity = list(self._identity(self.settings()))
+        with self.database() as db:
+            db.execute("BEGIN IMMEDIATE")
+            current = self._read_send_limits(db)
+            if revision != current["revision"]:
+                raise ConnectorError("Sending limits changed. Reload the saved limits and review your edit before saving again.")
+            records = self._decoded_records(db)
+            value = {**values, "version": 1, "revision": revision + 1,
+                     "identity": identity, "changed_at": now}
+            protected = self.protector.protect(value)
+            db.execute("CREATE TABLE IF NOT EXISTS send_limits (id INTEGER PRIMARY KEY CHECK(id=1), revision INTEGER NOT NULL, payload BLOB NOT NULL)")
+            db.execute("INSERT OR REPLACE INTO send_limits (id,revision,payload) VALUES (1,?,?)",
+                       (value["revision"], protected))
+            return self._send_limits_view({key: value[key] for key in self._default_send_limits()}, records, now)
 
     def send_window(self, now: float) -> dict:
         """Read the rate-limit state without creating private files or reserving a send."""
-        now = self._timestamp(now)
-        self.guard_paths()
-        if not (self.root / "drafts.sqlite3").exists():
-            return self._send_window_for_records([], now)
-        with self.database(readonly=True) as db:
-            return self._send_window_for_records(self._decoded_records(db), now)
+        return self.get_send_limits(now)["send_window"]
 
     def claim_send(self, draft_id: str, digest: str, now: float) -> None:
         with self.database() as db:
             db.execute("BEGIN IMMEDIATE")
             # Index columns are not trusted independently of the DPAPI envelope.
             records = self._decoded_records(db)
-            if not self._send_window_for_records(records, now)["ready"]:
-                raise ConnectorError("Pilot limit reached: at most 10 send attempts per 24 hours, at least 60 seconds apart.")
+            limits = self._read_send_limits(db)
+            if not self._send_window_for_records(records, now, limits)["ready"]:
+                raise ConnectorError(f"CivicRelay sending limit reached: at most {limits['max_attempts_per_24h']} attempts per rolling 24 hours, at least {limits['minimum_interval_seconds']} seconds apart. No automatic retry.")
             record = next((record for record in records if record["draft_id"] == draft_id), None)
             if not record or record["state"] != "draft" or record["digest"] != digest:
                 raise ConnectorError("Draft is not eligible for a new send attempt.")

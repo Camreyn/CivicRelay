@@ -12,8 +12,11 @@ export function renderToolReference() {
     'not permission to perform the action. CivicRelay has no per-action dialogs; host permissions remain separate.','',
     'Each native response includes text and structured content. Inspect `ok` and',
     '`isError`; a lost response is not evidence that a side effect failed. Python',
-    'independently validates operations. No tool can set credentials, sending policy,',
-    'a server URL, an executable path or a production-data import target.',''];
+    'independently validates operations. No tool can set credentials, send enablement,',
+    'TLS trust, a server URL, an executable path or a production-data import target.',
+    'The explicit `desk_save_send_limits` tool can edit bounded local attempt caps',
+    'and spacing only with user authority; it never resets history or overrides Proton.',
+    'See [sending limits](SENDING-LIMITS.md).',''];
   for(const [title,tools,source] of [[`Records workflow (${desk.length} tools)`,desk,'../app/static/tool-contracts.mjs'],[`Proton connector (${proton.length} tools)`,proton,'../connector/server.mjs']]) {
     lines.push('## '+title,'','Schema source: [implementation]('+source+').','');
     for(const tool of tools) {

@@ -1,7 +1,8 @@
 # Settings, source refresh and state guides
 
-Open **Settings** in the dashboard header. The panel has four keyboard-accessible
-sections: **Sources**, **State guides**, **Privacy & accounts**, and **Mail privacy**. Use the arrow,
+Open **Settings** in the dashboard header. The current source has five keyboard-accessible
+sections: **Sources**, **State guides**, **Privacy & accounts**, **Mail privacy**,
+and **Sending limits** (new, unreleased). Use the arrow,
 Home and End keys to move between section tabs. Escape or **Close settings** closes
 the panel without changing a case. The panel does not replace the workspace,
 template, campaign or local Proton setup controls.
@@ -107,7 +108,7 @@ the assistant workflow as well as the dashboard.
 ## Privacy and account boundaries
 
 The Settings panel does not expose credentials, bypass assistant-host
-permissions, change sending limits or TLS trust, or edit mailbox identity.
+permissions, change TLS trust, or edit mailbox identity.
 Account enrollment belongs in the dedicated local Proton setup window. See
 [account configuration](ACCOUNT-CONFIGURATION.md) and
 [privacy and security](SECURITY.md).
@@ -117,6 +118,15 @@ appeal, publish records or import election data. Source text and diagnostics are
 rendered as plain text, never HTML or executable instructions. Source links open
 only HTTPS URLs without embedded credentials. Private records and collected
 research stay outside the versioned source checkout.
+
+## Sending limits
+
+Open **Sending limits** to read local usage and explicitly save a rolling-24-hour
+attempt cap (1–1,000, default 10) and minimum spacing (1–3,600 seconds, default 60).
+Saving keeps all previous attempts and never sends, enables delivery or starts
+a queue. Provider restrictions are independent. Existing installs keep their
+defaults until edited. See [the full sending-limit guide](SENDING-LIMITS.md) for
+stale edits, update/restart steps, assistant tools and provider limitations.
 
 ## Assistant tools and integration
 
@@ -142,6 +152,8 @@ button does not change host tool permissions. See the
 `createSettings({host, api, onSourcesChanged, onMailChanged})`, returning
 `open(section)` and `close()`. The optional change callbacks reload saved views,
 not remote mail; `open('mail')` selects the Mail privacy tab.
+`open('sending')` selects Sending limits. Its read/save actions use
+`desk_get_send_limits` / `desk_save_send_limits` through the same guarded API.
 The caller supplies the dialog host and the same guarded operation adapter used
 by the dashboard. The optional callback refreshes other saved-data views after
 a successful collection; it must not synchronize mail or send messages.
