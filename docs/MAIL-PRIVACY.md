@@ -136,6 +136,21 @@ Low-level `proton_read_message` now requires the exact `mail_scope_id` returned
 by `proton_list_messages`, in addition to the UID and UIDVALIDITY. Relist after
 a scope change; matching numeric UIDs in different folders are not the same mail.
 
+## Empty folders and labels
+
+Empty selected folders are valid, including a Sent label that has not yet been
+used. Version 0.7.1 checks read-only folder metadata before issuing a UID search;
+an empty label returns zero messages, and a nonempty label searches only the
+eligible UID window. A later arrival is picked up by the next explicit mail
+check, without changing the saved scope or importing older mail.
+
+If 0.7.0 shows **Mailbox search failed or was too large** with an empty label,
+follow [the patch upgrade](UPGRADING.md). Keep the selected paths and history
+setting. Do not add unrelated mail to make a label nonempty, enable history,
+switch to dedicated mode, re-enroll credentials or reset stores to work around it.
+Real search errors, invalid metadata and changed mailbox identity still stop
+the affected check. An error is never silently treated as an empty mailbox.
+
 ## Verification and limits
 
 Synthetic tests cover a populated personal inbox, no-scope blocking, custom

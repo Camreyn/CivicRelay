@@ -43,7 +43,7 @@ preserved host settings. It is not a fresh-VM/UAC or live-account test.
 | Encryption/storage guards | Windows DPAPI round trips using synthetic values, tamper/link/repository-path rejection | Not a third-party cryptographic/security audit |
 | Send → receipt | Direct send without Tkinter/confirmation arguments, mocked SMTP, exact digest, quota, concurrency, uncertain outcomes and duplicate prevention | No real message sent; delivery is not tested |
 | Intake → public issue/export | Direct actions without approval modules, mocked GitHub, exact form/snapshot identity, private-link guards and uncertain-publication handling; synthetic ZIP byte checks | No public issue or real-record export created by tests |
-| Docs → implementation | Local links/npm commands checked; 69-tool reference compared to source schemas | External pages and prose still need human review |
+| Docs → implementation | Local links/npm commands checked; 74-tool reference compared to source schemas | External pages and prose still need human review |
 | Fresh workspace → templates → campaign | Synthetic strict-schema, safe-rendering, immutable-version, private-field, idempotency, target retention and linked-evidence tests | Literal template text still needs privacy and procedural review |
 | Configured destination → exact preview → receipt | Synthetic destination-revision invalidation, exact repository URL verification, unresolved-attempt locks and local case ZIP checks | Remote form schema/labels are not fetched or validated automatically |
 | Account profile → storage/draft | Synthetic v1 compatibility, fresh v2 identities, display-name/header and profile digest binding, ambiguous-store refusal | No new real account is enrolled or used by tests |
@@ -88,7 +88,7 @@ suite. It covers the configuration a new user actually generates, not just
 tools advertised directly by the servers:
 
 - Parses generated TOML with Python's standard-library `tomllib`; requires all
-  61 records and 8 mail tools exactly once. Negative fixtures detect missing,
+  66 records and 8 mail tools exactly once. Negative fixtures detect missing,
   duplicate, stale or disabled tools and a disabled server.
 - Checks absolute local entry points and the existing host permission defaults
   and per-tool overrides without opening or changing any real `.codex` file.
@@ -170,6 +170,22 @@ actual dashboard and HTTP handler over a disposable store: selected-state guides
 are automatic/default-collapsed, source links and municipal search render, and
 failed refreshes retain the good collection across reloads. All external
 requests and mail/publication operations are forbidden in these fixtures.
+
+## Empty-label mail regression
+
+`app/test_mail_privacy.py` models Bridge returning `NO no such message` if UID
+SEARCH is attempted on an empty selected folder. It exercises both desk sync
+and the lower-level assistant listing, selected incoming/Sent labels, preserved
+scope/cursors, subsequent arrivals, pagination and fail-closed identity/metadata
+checks. `connector/test_connector.py` independently checks search bounds,
+malformed/oversized results, genuine failures and post-SELECT arrivals.
+
+`app/mail-sync.browser.test.mjs` runs the actual dashboard, HTTP handler, service
+and disposable storage with synthetic IMAP only. It previews/applies empty
+labels, checks the visible zero-result success, imports the first arrival once,
+displays a real search failure and recovers without skipping that message.
+Personal Inbox/Sent fixtures remain outside the scope. SMTP is forbidden;
+the real Bridge, operator account and running dashboard are never used.
 
 ## GitHub Actions
 

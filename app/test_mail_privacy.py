@@ -28,8 +28,10 @@ class FakeIMAP:
         self.epochs = {key: 42 for key in self.boxes}
         self.selected = None
         self.fetches = []
+        self.searches = []
         self.selections = []
         self.missing_next = False
+        self.next_uids = {}
     @staticmethod
     def raw(label, reply=None):
         m = EmailMessage(); m['From'] = 'records@example.gov'; m['To'] = 'relay@example.org'
@@ -42,18 +44,22 @@ class FakeIMAP:
     def select(self, folder, readonly):
         assert readonly is True
         self.selected = folder.strip('"'); self.selections.append(self.selected)
-        return ('OK', [b'1']) if self.selected in self.boxes else ('NO', [])
+        return ('OK', [str(len(self.boxes[self.selected])).encode()]) if self.selected in self.boxes else ('NO', [])
     def response(self, key):
         if key == 'UIDVALIDITY': value = self.epochs[self.selected]
         elif key == 'UIDNEXT':
             if self.missing_next: return ('UIDNEXT', [None])
-            value = max(self.boxes[self.selected], default=0) + 1
+            value = self.next_uids.get(self.selected, max(self.boxes[self.selected], default=0) + 1)
         elif key == 'EXISTS': value = len(self.boxes[self.selected])
         else: raise AssertionError(key)
         return key, [str(value).encode()]
     def uid(self, command, *args):
         if command == 'search':
             assert args[1] == 'UID', args
+            self.searches.append((self.selected, args[2]))
+            # Proton Bridge/Gluon can reject UID SEARCH on an empty label,
+            # rather than returning OK with no matches. Never mask a real NO.
+            if not self.boxes[self.selected]: return 'NO', [b'no such message']
             lo, hi = args[2].split(':'); hi = max(self.boxes[self.selected], default=0) if hi == '*' else int(hi)
             # Real IMAP ranges can return the last UID for N:* even when N is
             # above it. The caller must enforce the lower bound independently.
@@ -113,6 +119,100 @@ class MailPrivacyTests(unittest.TestCase):
         self.imap.boxes['Folders/CivicRelay'][2] = self.imap.raw('during-preview')
         self.call('desk_apply_mail_scope', preview_id=p['preview_id'], expected_digest=p['digest'])
         self.assertEqual(self.call('desk_sync_mail')['new_headers'], 1)
+
+    def test_empty_incoming_and_sent_labels_skip_search_in_both_interfaces(self):
+        for history in (False, True):
+            with self.subTest(history=history):
+                self.imap.boxes['Folders/CivicRelay'].clear()
+                self.imap.boxes['Labels/CivicRelay Sent'].clear()
+                self.configure(history=history, sent_folder='Labels/CivicRelay Sent')
+                result = self.call('desk_sync_mail')
+                self.assertEqual(result['new_headers'], 0)
+                for folder in ('INBOX', 'Sent'):
+                    result = connector.dispatch('proton_list_messages', {'folder': folder}, self.store)
+                    self.assertEqual(result['messages'], [])
+                    self.assertIsNone(result['next_before_uid'])
+                    self.assertEqual(self.db.get('sync', folder)['last_uid'], 0)
+                self.assertEqual(self.imap.searches, [])
+                self.assertEqual(self.imap.fetches, [])
+                self.assertEqual(self.db.all('mail'), [])
+                self.assertEqual(set(self.imap.selections), {'Folders/CivicRelay', 'Labels/CivicRelay Sent'})
+
+    def test_empty_label_with_old_uids_preserves_boundary_and_later_arrival(self):
+        self.imap.boxes['Folders/CivicRelay'].clear()
+        self.imap.next_uids['Folders/CivicRelay'] = 51
+        self.configure()
+        self.assertEqual(self.call('desk_sync_mail')['new_headers'], 0)
+        self.assertEqual(self.db.get('sync', 'INBOX')['last_uid'], 50)
+        self.assertEqual(self.imap.searches, [])
+        # A message arriving after the empty check is picked up next time;
+        # no history reset, scope change or dummy message is needed.
+        self.imap.boxes['Folders/CivicRelay'][51] = self.imap.raw('first-arrival')
+        self.imap.next_uids['Folders/CivicRelay'] = 52
+        self.assertEqual(self.call('desk_sync_mail')['new_headers'], 1)
+        result = connector.dispatch('proton_list_messages', {}, self.store)
+        self.assertEqual([m['uid'] for m in result['messages']], [51])
+        self.assertEqual(self.imap.searches, [('Folders/CivicRelay', '51:51')] * 2)
+        self.assertEqual(self.call('desk_sync_mail')['new_headers'], 0)
+        self.assertEqual(len(self.db.all('mail')), 1)
+
+    def test_one_empty_label_does_not_block_other_selected_label(self):
+        for empty, populated in (('Folders/CivicRelay', 'Labels/CivicRelay Sent'),
+                                 ('Labels/CivicRelay Sent', 'Folders/CivicRelay')):
+            with self.subTest(empty=empty):
+                self.imap.boxes[empty] = {}
+                self.imap.boxes[populated] = {2: self.imap.raw('selected-records')}
+                self.configure(history=True, sent_folder='Labels/CivicRelay Sent')
+                self.imap.searches.clear(); self.imap.fetches.clear()
+                self.assertEqual(self.call('desk_sync_mail')['new_headers'], 1)
+                self.assertEqual(self.imap.searches, [(populated, '1:2')])
+                self.assertEqual({f[0] for f in self.imap.fetches}, {populated})
+
+    def test_empty_label_still_checks_mailbox_identity(self):
+        self.imap.boxes['Folders/CivicRelay'].clear()
+        self.configure()
+        self.imap.epochs['Folders/CivicRelay'] = 43
+        with self.assertRaisesRegex(ConnectorError, 'identity changed'): self.call('desk_sync_mail')
+        with self.assertRaisesRegex(ConnectorError, 'identity changed'):
+            connector.dispatch('proton_list_messages', {}, self.store)
+        self.assertEqual(self.imap.searches, [])
+        self.assertEqual(self.imap.fetches, [])
+        self.assertEqual(self.db.all('sync'), [])
+
+    def test_no_new_uids_and_pagination_do_not_issue_reversed_search(self):
+        self.configure()
+        self.assertEqual(self.call('desk_sync_mail')['new_headers'], 0)
+        self.assertEqual(connector.dispatch('proton_list_messages', {}, self.store)['messages'], [])
+        self.assertEqual(connector.dispatch('proton_list_messages', {'before_uid': 2}, self.store)['messages'], [])
+        self.assertEqual(self.imap.searches, [])
+        self.imap.boxes['Folders/CivicRelay'].update({i: self.imap.raw(f'record-{i}') for i in range(2, 5)})
+        result = connector.dispatch('proton_list_messages', {'limit': 2}, self.store)
+        self.assertEqual([m['uid'] for m in result['messages']], [4, 3])
+        self.assertEqual(result['next_before_uid'], 3)
+        result = connector.dispatch('proton_list_messages', {'limit': 2, 'before_uid': 3}, self.store)
+        self.assertEqual([m['uid'] for m in result['messages']], [2])
+        self.assertIsNone(result['next_before_uid'])
+        self.assertEqual(self.imap.searches, [('Folders/CivicRelay', '2:4'), ('Folders/CivicRelay', '2:2')])
+
+    def test_real_search_failure_is_not_treated_as_empty_or_advanced(self):
+        self.configure(history=True)
+        before = self.db.all('sync')
+        with patch.object(self.imap, 'uid', return_value=('NO', [b'synthetic upstream detail'])):
+            with self.assertRaisesRegex(ConnectorError, 'could not search'): self.call('desk_sync_mail')
+            with self.assertRaisesRegex(ConnectorError, 'could not search'):
+                connector.dispatch('proton_list_messages', {}, self.store)
+        self.assertEqual(self.db.all('sync'), before)
+        self.assertEqual(self.db.all('mail'), [])
+
+    def test_missing_uidnext_on_sync_fails_closed_without_fetch(self):
+        self.configure(history=True)
+        self.imap.missing_next = True
+        with self.assertRaisesRegex(ConnectorError, 'UIDNEXT'): self.call('desk_sync_mail')
+        with self.assertRaisesRegex(ConnectorError, 'UIDNEXT'):
+            connector.dispatch('proton_list_messages', {}, self.store)
+        self.assertEqual(self.imap.searches, [])
+        self.assertEqual(self.imap.fetches, [])
+        self.assertEqual(self.db.all('sync'), [])
     def test_selected_folder_only_and_low_level_cannot_bypass(self):
         self.configure(history=True)
         self.assertEqual(self.call('desk_sync_mail')['new_headers'], 1)
