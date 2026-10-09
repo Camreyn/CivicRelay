@@ -12,7 +12,14 @@ const root = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 const asset = path.join(root, '.local/release', `civicrelay-v${pkg.version}.zip`);
 const raw = fs.readFileSync(asset), digest = crypto.createHash('sha256').update(raw).digest('hex');
-const python = pythonExecutable(), base = fs.mkdtempSync(path.join(os.tmpdir(), 'civicrelay-update-rehearsal-'));
+const python = pythonExecutable();
+// Windows hosted runners expose an 8.3 TEMP alias. Match the installer's Python
+// canonical path before constructing its approval; keep production path checks strict.
+const tempProbe = spawnSync(python, ['-B', '-E', '-s', '-S', '-c', 'import json,sys; from pathlib import Path; print(json.dumps(str(Path(sys.argv[1]).resolve())))', os.tmpdir()], {encoding: 'utf8', windowsHide: true, shell: false});
+assert.equal(tempProbe.status, 0, 'Could not identify the disposable rehearsal temp directory.');
+const tempRoot = JSON.parse(tempProbe.stdout);
+assert.equal(path.isAbsolute(tempRoot), true);
+const base = fs.mkdtempSync(path.join(tempRoot, 'civicrelay-update-rehearsal-'));
 const old = path.join(base, 'old'), appdata = path.join(base, 'fictional-AppData');
 const id = crypto.randomBytes(16).toString('hex'), destination = path.join(base, `CivicRelay-v${pkg.version}-${id.slice(0, 8)}`);
 function write(relative, contents) {
@@ -62,10 +69,10 @@ try {
     old_source_and_fictional_data_unchanged: true, live_process_inventory_mocked: true, app_activation_performed: false}));
 } finally {
   if (success) {
-    assert.equal(path.dirname(path.resolve(base)), path.resolve(os.tmpdir()));
+    assert.equal(path.dirname(path.resolve(base)), path.resolve(tempRoot));
     assert.ok(path.basename(base).startsWith('civicrelay-update-rehearsal-'));
     assert.equal(fs.lstatSync(base).isSymbolicLink(), false);
-    assert.equal(path.dirname(fs.realpathSync(base)), fs.realpathSync(os.tmpdir()));
+    assert.equal(path.dirname(fs.realpathSync(base)), fs.realpathSync(tempRoot));
     // Only the explicitly verified disposable rehearsal root is removed.
     fs.rmSync(base, {recursive: true});
   } else console.error('Failed synthetic rehearsal retained for inspection: ' + base);
