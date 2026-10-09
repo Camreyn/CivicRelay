@@ -1,23 +1,27 @@
-# Updating CivicRelay to 0.7.1
+# Updating CivicRelay to 0.8.0
 
-**Unreleased source addition:** configurable **Settings → Sending limits** and
-two native tools, `desk_get_send_limits` and `desk_save_send_limits`, are not in
-the v0.7.1 ZIP. Once installing a version containing that feature, follow the
-same stop/update/install/restart process below and review those two allowlist
-entries. There are no new dependencies or credential changes; 10/60 defaults and
-all attempts remain until an explicit policy edit. The current source has 68
-records tools plus 8 mail tools. See [sending-limit instructions](SENDING-LIMITS.md).
+Version 0.8.0 adds **Settings → Requester defaults**, reusable identity variables
+and per-field enable switches, and includes **Settings → Sending limits** with
+`desk_get_send_limits` and `desk_save_send_limits`. Review those two allowlist
+entries when upgrading from 0.7.1. Requester defaults extend the existing
+workspace-tool schemas; restart connections to load them. There are no new
+dependencies or credential changes. Saved templates, cases and drafts remain
+unchanged. Review your default-use switches before new requests; literal identity
+text is not automatically replaced. See [requester defaults](SETTINGS.md#requester-defaults)
+and [sending limits](SENDING-LIMITS.md). The release has 68 records tools and 8 mail tools.
 
 This release contains the guided installer and the mailbox-privacy fix. The old
 0.6.1 release ZIP does not. Updating code alone neither deletes accidental mail
 imports nor chooses a new mailbox scope.
 
-**Already on 0.7.0?** This patch fixes mail checks on empty selected Proton
+**Already on 0.7.0 or 0.7.1?** This release retains the fix for empty selected Proton
 folders/labels. Follow steps 1–3, then keep your saved scope and click **Check for
 replies**. Empty labels should report **0 new headers synced. Mailbox check
-complete.** Do not re-preview/apply a working scope just for this patch: that
+complete.** Do not re-preview/apply a working scope just for this update: that
 would move a new-only boundary and could skip mail that arrived since setup.
-There are no new tools, dependencies, data migrations or permission changes.
+Keep existing credentials, records and attempts. Limits stay at 10/60 until an
+explicit policy edit; the two optional sending-limit tools do not change existing
+host permissions. There is no history rescan or destructive data migration.
 
 ## 1. Stop the old code
 
@@ -52,14 +56,14 @@ the normal `Camreyn/CivicRelay` clone, not the separate CivicResultMaps reposito
 
 ### If installed from a ZIP
 
-Download the **Source code (zip)** for [v0.7.1](https://github.com/Camreyn/CivicRelay/releases/tag/v0.7.1).
+Download the **Source code (zip)** for [v0.8.0](https://github.com/Camreyn/CivicRelay/releases/tag/v0.8.0).
 Extract the entire archive into a new, permanent local folder. Keep the old
 installation as a rollback/reference copy, but do not run its old mail tools.
 Move/copy no private AppData databases into either checkout.
 
 Preserve your local research and configuration. If keeping the new folder name,
 update existing assistant connection paths (`command`/`args`/`cwd`) to this
-installation and add the five privacy tools if desired, keeping existing
+installation and add missing privacy/sending-limit tools if desired, keeping existing
 permission choices. Do not create duplicate connections or replace your whole
 configuration with a placeholder. Alternatively, with all old processes stopped,
 place the new source at the original installation path and retain the old ignored
@@ -75,10 +79,10 @@ The installer is not an automatic source updater.
 
 Open **Open CivicRelay.cmd**, reload the page, and restart the assistant
 connections using the updated paths. Use `desk_status` (or `/health`) to confirm
-`tooling_version: 0.7.1`; `proton_status` also reports `version: 0.7.1`.
+`tooling_version: 0.8.0`; `proton_status` also reports `version: 0.8.0`.
 If it reports an older version, an old process/connection is still in use.
 
-Assistant allowlists from before 0.7.0 may need these additions (unchanged in 0.7.1):
+Assistant allowlists from before 0.7.0 may need these privacy additions:
 
 ```text
 desk_get_mail_scope
@@ -88,9 +92,13 @@ desk_preview_mail_cleanup
 desk_apply_mail_cleanup
 ```
 
+Allowlists from before 0.8.0 may also need `desk_get_send_limits` and
+`desk_save_send_limits`. Existing `desk_get_workspace` / `desk_save_workspace`
+entries cover requester defaults; reconnect to load their updated schemas.
+
 See the complete [configuration template](mcp-config.example.toml) and
 [assistant configuration upgrade](SETUP.md#upgrading-an-existing-assistant-configuration).
-The v0.7.1 total is 66 records tools plus 8 mail tools; the WebMCP budget stays 64.
+The v0.8.0 total is 68 records tools plus 8 mail tools; the WebMCP budget stays 64.
 Low-level `proton_read_message` additionally requires `mail_scope_id` from the
 latest `proton_list_messages` result. Restart connections to load the new schema.
 

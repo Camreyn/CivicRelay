@@ -1,6 +1,18 @@
 # Testing and verification limits
 
-## Configurable sending-limit coverage (unreleased)
+## Requester-default coverage (v0.8.0)
+
+`app/test_general.py` covers all seven saved values and enable switches, strict
+partial updates, contact-email/sender separation, old-profile compatibility,
+disabled required fields, explicit blanks and frozen cases. Equipment regressions
+check the neutral new sign-off and preservation of existing final sign-offs.
+`app/requester-defaults.browser.test.mjs` exercises the actual Settings → HTTP →
+encrypted synthetic workspace → template → immutable draft flow, including
+one-off controls for undeclared built-ins, inherited-value refresh, stale edits,
+lost-response recovery, export privacy and mobile layout. No live account or
+correspondence is used. The suite includes 333 unit tests and 13 browser workflows.
+
+## Configurable sending-limit coverage (v0.8.0)
 
 `connector/test_send_policy.py` covers default/read-only old-store behavior,
 raising and lowering limits, exact window/spacing boundaries, unchanged attempt

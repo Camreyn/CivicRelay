@@ -1,6 +1,6 @@
 {
   "name": "civic-relay",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "private": true,
   "type": "module",
   "description": "Windows-local records-request dashboard and guarded Proton Mail Bridge tools",

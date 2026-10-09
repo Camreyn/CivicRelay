@@ -175,7 +175,7 @@ hides later additions such as workspace, template, campaign, destination,
 equipment, deadline, county-contact, MA review and source/guide tools. A working
 dashboard or successful server restart does not correct an old allowlist.
 The five new mailbox privacy/cleanup tools are listed in [UPGRADING.md](UPGRADING.md).
-The unreleased sending-limit controls add `desk_get_send_limits` and
+The v0.8.0 sending-limit controls add `desk_get_send_limits` and
 `desk_save_send_limits`; see [limits and authority](SENDING-LIMITS.md).
 
 1. Update to the [current source](INSTALL.md#three-steps), which includes the

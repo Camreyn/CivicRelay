@@ -2,7 +2,7 @@
 
 Open **Settings** in the dashboard header. The current source has six keyboard-accessible
 sections: **Sources**, **Requester defaults**, **State guides**, **Privacy & accounts**, **Mail privacy**,
-and **Sending limits** (requester defaults and sending limits are unreleased). Use the arrow,
+and **Sending limits** (requester defaults and sending limits are included in v0.8.0). Use the arrow,
 Home and End keys to move between section tabs. Escape or **Close settings** closes
 the panel without changing a case. The panel does not replace the workspace,
 template, campaign or local Proton setup controls.

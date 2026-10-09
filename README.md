@@ -22,8 +22,9 @@ identity and stores. No credentials or real correspondence are included here.
 The current source also includes the guided Windows installer, county request
 maps and contact research, map controls, source-linked deadline tracking,
 Massachusetts response reviews, state guides, and Settings/source refresh.
-These additions, the mailbox-privacy fix, and empty-label compatibility are included in
-[v0.7.1](https://github.com/Camreyn/CivicRelay/releases/tag/v0.7.1).
+These additions, requester defaults, configurable sending limits, the mailbox-privacy
+fix, and empty-label compatibility are included in
+[v0.8.0](https://github.com/Camreyn/CivicRelay/releases/tag/v0.8.0).
 See [updating an existing installation](docs/UPGRADING.md).
 
 **Using an account with personal or pre-existing email?** Version 0.7.0 blocks
@@ -34,7 +35,7 @@ removed **locally only**, without deleting Proton originals or request history.
 Read the [privacy and recovery guide](docs/MAIL-PRIVACY.md).
 
 **Empty Proton label shows “Mailbox search failed or was too large”?** Update to
-0.7.1 and restart the dashboard and assistant connections. Empty selected labels
+0.8.0 and restart the dashboard and assistant connections. Empty selected labels
 now return zero messages normally. Keep your existing privacy scope and history
 choice; no dummy message, credential reset or broader mailbox access is needed.
 
@@ -72,7 +73,7 @@ See [how these screenshots are safely maintained](docs/SCREENSHOTS.md).
 
 ## What it does
 
-- Adds **Settings → Requester defaults** in the current unreleased source:
+- Adds **Settings → Requester defaults**:
   private name, address, phone, contact email, organization, title and signature
   with per-field enable switches and [reusable template variables](docs/SETTINGS.md#requester-defaults).
   No project identity is used as a fallback; saved cases/drafts stay unchanged.
@@ -118,8 +119,7 @@ See [how these screenshots are safely maintained](docs/SCREENSHOTS.md).
   Every automatic date remains an estimate, not a finding of a legal violation.
 
 The default is **10 send attempts per rolling 24 hours**, at least 60 seconds
-apart. The current unreleased source makes both values configurable in
-**Settings → Sending limits**; v0.7.1 still has the fixed cap. See
+apart. Both values are configurable in **Settings → Sending limits**. See
 [sending limits and Proton restrictions](docs/SENDING-LIMITS.md). An assistant can review and act within a user-delegated records
 workflow without a CivicRelay confirmation for each message. This release does
 not add a scheduler or unattended bulk-sending loop.
@@ -135,7 +135,7 @@ Mail Bridge running and signed in. Existing credentials, correspondence, drafts,
 and receipts remain in their original encrypted Windows-user storage, outside
 this Git repository.
 
-After updating to 0.7.1, restart the CivicRelay dashboard when no operation is
+After updating to 0.8.0, restart the CivicRelay dashboard when no operation is
 in progress, reload its page, and reconnect its two native tool connections.
 The old `confirmation` tool arguments have been removed; use the current schemas.
 No credential re-enrollment is needed. If no scope is saved, make the one-time
@@ -151,7 +151,7 @@ to review the missing entries. Existing host permissions remain separate.
 
 On a **64-bit Intel/AMD Windows PC** (Windows 11 recommended):
 
-1. Download **Source code (zip)** from [v0.7.1](https://github.com/Camreyn/CivicRelay/releases/tag/v0.7.1)
+1. Download **Source code (zip)** from [v0.8.0](https://github.com/Camreyn/CivicRelay/releases/tag/v0.8.0)
    and extract the **entire** archive into a permanent local folder, or clone
    this repository. Git is not required for the ZIP option. Do not use the
    older v0.6.1 release ZIP for these instructions.
@@ -241,8 +241,8 @@ connection and allowed-tool list before trying account setup again.
 
 ### What tooling is available?
 
-The current source's starter configuration exposes **68 records tools and 8 mail tools**
-(v0.7.1 has 66 records tools; the two sending-limit tools are unreleased).
+The release's starter configuration exposes **68 records tools and 8 mail tools**
+(v0.7.1 had 66 records tools, before the two sending-limit tools).
 Prefer `desk_*` tools for case-linked request work; `proton_*` tools expose the
 lower-level mail connector. This overview lists common tools, not every argument:
 
@@ -456,6 +456,7 @@ run against another person's mailbox. Do not run two dashboards on port 8766.
 - [0.6.1 assistant-setup patch notes](docs/RELEASE-0.6.1.md)
 - [0.7.0 mailbox-privacy release notes](docs/RELEASE-0.7.0.md)
 - [0.7.1 empty-label compatibility patch notes](docs/RELEASE-0.7.1.md)
+- [0.8.0 requester-defaults and sending-limits release notes](docs/RELEASE-0.8.0.md)
 - [Migration, compatibility, and rollback](docs/MIGRATION.md)
 
 ## Git and publication

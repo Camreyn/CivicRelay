@@ -9,7 +9,7 @@ different administrator account: encrypted records belong to the signed-in user.
 
 ## Three steps
 
-1. Download **Source code (zip)** from [v0.7.1](https://github.com/Camreyn/CivicRelay/releases/tag/v0.7.1)
+1. Download **Source code (zip)** from [v0.8.0](https://github.com/Camreyn/CivicRelay/releases/tag/v0.8.0)
    (also available from the repository's **Code → Download ZIP** menu).
    The older **v0.6.1 release ZIP does not include this installer**. These
    instructions describe the current source, not that older release. Extract

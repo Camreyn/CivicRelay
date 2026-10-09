@@ -1,7 +1,6 @@
 # Configurable sending limits
 
-This feature is in the current unreleased source, not the v0.7.1 ZIP. Install a
-release containing it before looking for the new controls. Update the code and
+This feature is included in v0.8.0, not the v0.7.1 ZIP. Update the code and
 restart both the dashboard and assistant connections; do not reset or re-enroll
 the mailbox. See [upgrading](UPGRADING.md).
 
