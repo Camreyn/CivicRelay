@@ -84,7 +84,7 @@ No fees are authorized. Before undertaking chargeable work, please provide an it
 
 This is neutral evidence gathering about existing records, not an allegation of election interference. Please acknowledge receipt and provide any tracking reference.
 
-Civic Result Maps Staff'''
+Thank you.'''
     return {'id': key, 'state': state, 'state_name': info['name'], 'year': 2024,
             'family': 'equipment', 'family_label': 'Equipment & communications / ' + jurisdiction,
             'request_ids': [f'EC-2024-{state}-{slug.upper()}'], 'requests': [],
@@ -94,7 +94,13 @@ Civic Result Maps Staff'''
 
 
 def current_base(service, case):
-    return request_base(service, case['state'], case['jurisdiction'], case['jurisdiction_level'])
+    base = request_base(service, case['state'], case['jurisdiction'], case['jurisdiction_level'])
+    # A sign-off-only source update must not invalidate old frozen identity text.
+    # Keep detecting drift in the actual request, subject, scope and other fields.
+    saved_body = case.get('base', {}).get('body', '')
+    if saved_body.rsplit('\n\n', 1)[0] == base['body'].rsplit('\n\n', 1)[0]:
+        base['body'] = saved_body
+    return base
 
 
 def create_request(service, args):

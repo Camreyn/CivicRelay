@@ -6,8 +6,8 @@
     "envelope": {"tool": "desk_*", "arguments": {}}
   },
   "operations": {
-    "desk_get_workspace": {"arguments": {}, "read_only": true, "returns": {"workspace": {"id": "default", "revision": 0, "name": "", "organization": "", "signature": "", "requester_name": "", "requester_address": "", "requester_phone": "", "requester_configured": false, "legacy_storage": false, "starter_pack": "blank"}}},
-    "desk_save_workspace": {"arguments": {"revision": 0, "name": "", "organization": "", "signature": "", "requester_name": "", "requester_address": "", "requester_phone": "", "starter_pack": "blank"}, "returns": {"workspace": {}}},
+    "desk_get_workspace": {"arguments": {}, "read_only": true, "returns": {"workspace": {"id": "default", "revision": 0, "name": "", "organization": "", "signature": "", "requester_name": "", "requester_address": "", "requester_phone": "", "requester_email": "", "requester_title": "", "identity_enabled": {"requester_name": false, "requester_address": false, "requester_phone": false, "requester_email": true, "organization": true, "requester_title": false, "signature": true}, "requester_configured": false, "legacy_storage": false, "starter_pack": "blank"}}},
+    "desk_save_workspace": {"arguments": {"revision": 0, "name": "", "organization": "", "signature": "", "requester_name": "", "requester_address": "", "requester_phone": "", "requester_email": "", "requester_title": "", "identity_enabled": {}, "starter_pack": "blank"}, "returns": {"workspace": {}}},
     "desk_list_templates": {"arguments": {}, "read_only": true, "returns": {"templates": []}},
     "desk_get_template": {"arguments": {"template_id": ""}, "read_only": true, "returns": {"template": {}}},
     "desk_save_template": {"arguments": {"template_id": "optional", "revision": "optional", "definition": {}}, "returns": {"template": {}, "created": true}},
@@ -29,6 +29,6 @@
     "archive": "definition.archived boolean; version snapshots remain immutable",
     "duplicate": "desk_save_template without template_id creates a distinct template"
   },
-  "workspace_private_fields": ["requester_name", "requester_address", "requester_phone"],
-  "safety": ["No operation sends email, accepts fees, establishes legal eligibility, or chooses a destination.", "Workspace builtins organization, signature, requester_email, agency, jurisdiction, state, date_start and date_end render only when explicitly referenced. Personal requester values are injected only through an explicitly declared required field of the same name.", "Case creation freezes its template version/hash and rendered fields; later template changes or archive do not invalidate it."]
+  "workspace_private_fields": ["requester_name", "requester_address", "requester_phone", "requester_email", "requester_title", "organization", "signature", "identity_enabled"],
+  "safety": ["No operation sends email, accepts fees, establishes legal eligibility, or chooses a destination.", "Enabled workspace defaults render only when explicitly referenced. Disabled defaults render blank; explicit per-request values override defaults. No organization-specific identity is supplied. Requester contact email does not change the enrolled sender.", "Case creation freezes its template version/hash and rendered fields; later template or default changes do not invalidate it."]
 }

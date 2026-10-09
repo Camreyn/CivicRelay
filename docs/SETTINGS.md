@@ -1,11 +1,67 @@
 # Settings, source refresh and state guides
 
-Open **Settings** in the dashboard header. The current source has five keyboard-accessible
-sections: **Sources**, **State guides**, **Privacy & accounts**, **Mail privacy**,
-and **Sending limits** (new, unreleased). Use the arrow,
+Open **Settings** in the dashboard header. The current source has six keyboard-accessible
+sections: **Sources**, **Requester defaults**, **State guides**, **Privacy & accounts**, **Mail privacy**,
+and **Sending limits** (requester defaults and sending limits are unreleased). Use the arrow,
 Home and End keys to move between section tabs. Escape or **Close settings** closes
 the panel without changing a case. The panel does not replace the workspace,
 template, campaign or local Proton setup controls.
+
+## Requester defaults
+
+Save your own name, postal address, phone number, contact email, organization,
+title/role and signature here. Each **Use … by default** switch controls only
+that field's saved default. Disabled values remain stored privately but are not
+inserted automatically. Saving is explicit; opening the tab does not write
+settings, connect to mail or send anything. These are the same encrypted defaults
+shown in **General records desk → Workspace settings**.
+
+| Value | Template variable |
+| --- | --- |
+| Requester name | `{{requester_name}}` |
+| Postal address | `{{requester_address}}` |
+| Phone number | `{{requester_phone}}` |
+| Contact email | `{{requester_email}}` |
+| Organization | `{{organization}}` |
+| Title / role | `{{requester_title}}` |
+| Signature | `{{signature}}` |
+
+Values appear only where referenced; nothing appends a signature or invents an
+identity. Explicit per-request values override saved defaults, even when the
+default is disabled; an explicit blank suppresses it for that request. Use
+`{{#if requester_address}}...{{/if}}` for optional sections. A disabled required
+field fails validation unless you provide a one-off value; declaring a field
+required describes the template, not the recipient's legal rules.
+
+Template preview and new-request forms show each referenced identity variable,
+including built-ins not declared as fields. Check **Use one-off …** to edit that
+value or deliberately leave it blank. Unchecked controls inherit the current
+saved defaults. Saving Settings refreshes inherited values in an open form
+without discarding one-off edits or other unsaved request details.
+
+Contact email is correspondence text, not the actual From address. When enabled
+and left blank it uses the enrolled sender email, preserving existing behavior.
+Disable its switch to suppress that default. Account enrollment and credentials
+remain in local Proton setup. All other blank defaults stay blank.
+
+Name, address, phone and title start disabled on a fresh workspace; organization,
+signature and email preserve their existing enabled behavior. Older profiles keep
+their saved identity values and existing personal-field use without rewriting
+the store on read. Review the switches after updating. Defaults affect only
+later previews/new requests; saved cases, templates and immutable mail drafts
+are not rewritten. Definition exports exclude values and switches.
+
+Unsaved edits survive tab changes and closing/reopening Settings on the same
+page. A stale revision is rejected without discarding your edits. **Reload saved
+defaults (discard edits)** loads the current workspace; it intentionally replaces
+unsaved edits. A lost save response never triggers an automatic retry—reload to
+check what was saved. Reloading the whole page discards unsaved edits.
+
+Assistants use `desk_get_workspace` to read and `desk_save_workspace` to save.
+The `identity_enabled` object has boolean keys matching the variable names above.
+Partial saves preserve unmentioned values and flags. Defaults are private local
+configuration, not permission to send, publish, sign a declaration or infer
+residency. Review the exact outgoing text and applicable submission rules.
 
 ## Sources
 
@@ -149,11 +205,14 @@ button does not change host tool permissions. See the
 [tool reference](TOOL-REFERENCE.md) and [operator guide](OPERATOR-TOOLS.md).
 
 `app/static/settings.js` exports
-`createSettings({host, api, onSourcesChanged, onMailChanged})`, returning
+`createSettings({host, api, onSourcesChanged, onMailChanged, onWorkspaceChanged})`, returning
 `open(section)` and `close()`. The optional change callbacks reload saved views,
 not remote mail; `open('mail')` selects the Mail privacy tab.
 `open('sending')` selects Sending limits. Its read/save actions use
 `desk_get_send_limits` / `desk_save_send_limits` through the same guarded API.
+`open('requester')` selects Requester defaults. Its read/save actions use
+`desk_get_workspace` / `desk_save_workspace`; the workspace callback refreshes
+saved views and inherited identity controls after a successful save.
 The caller supplies the dialog host and the same guarded operation adapter used
 by the dashboard. The optional callback refreshes other saved-data views after
 a successful collection; it must not synchronize mail or send messages.

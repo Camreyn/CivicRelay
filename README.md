@@ -72,6 +72,10 @@ See [how these screenshots are safely maintained](docs/SCREENSHOTS.md).
 
 ## What it does
 
+- Adds **Settings → Requester defaults** in the current unreleased source:
+  private name, address, phone, contact email, organization, title and signature
+  with per-field enable switches and [reusable template variables](docs/SETTINGS.md#requester-defaults).
+  No project identity is used as a fallback; saved cases/drafts stay unchanged.
 - Shows 50 states plus DC, with request status and a per-case workspace.
 - Automatically shows available [state guides](docs/SETTINGS.md#state-guides)
   for the selected state, **collapsed by default**. Includes existing timing

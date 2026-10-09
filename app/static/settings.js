@@ -1,7 +1,8 @@
 // Local settings read saved metadata; remote operations are always explicit.
 import {createMailPrivacy} from './mail-privacy.js';
 import {createSendingLimits} from './sending-limits.js';
-export function createSettings({host, api, onSourcesChanged = async () => {}, onMailChanged = async () => {}}) {
+import {createRequesterDefaults} from './requester-defaults.js';
+export function createSettings({host, api, onSourcesChanged = async () => {}, onMailChanged = async () => {}, onWorkspaceChanged = async () => {}}) {
   let inventory = [], loading = false, refreshing = false, readingFile = false, pendingResult = null;
   let opener = null, selectedTab = 'sources', loadVersion = 0;
   const imports = new Map();
@@ -47,12 +48,12 @@ export function createSettings({host, api, onSourcesChanged = async () => {}, on
   const closeButton = button('Close settings', close);
   closeButton.className = 'settings-close';
   head.append(title, closeButton);
-  const intro = el('p', 'Manage public-source refreshes, mailbox privacy and local sending limits.', 'settings-intro');
+  const intro = el('p', 'Manage requester defaults, public-source refreshes, mailbox privacy and local sending limits.', 'settings-intro');
   const tabs = el('div', undefined, 'settings-tabs');
   tabs.setAttribute('role', 'tablist');
   tabs.setAttribute('aria-label', 'Settings sections');
   const panels = new Map(), tabButtons = new Map();
-  for (const [id, label] of [['sources', 'Sources'], ['guides', 'State guides'], ['privacy', 'Privacy & accounts'], ['mail', 'Mail privacy'], ['sending', 'Sending limits']]) {
+  for (const [id, label] of [['sources', 'Sources'], ['requester', 'Requester defaults'], ['guides', 'State guides'], ['privacy', 'Privacy & accounts'], ['mail', 'Mail privacy'], ['sending', 'Sending limits']]) {
     const tab = button(label, () => selectTab(id));
     tab.id = `settings-tab-${id}`;
     tab.setAttribute('role', 'tab');
@@ -87,6 +88,7 @@ export function createSettings({host, api, onSourcesChanged = async () => {}, on
     }
     if (id === 'mail') void mailPrivacy.load();
     if (id === 'sending') void sendingLimits.load();
+    if (id === 'requester') void requesterDefaults.load();
   }
 
   const sourcePanel = panels.get('sources');
@@ -108,6 +110,7 @@ export function createSettings({host, api, onSourcesChanged = async () => {}, on
   privacy.append(el('h3', 'Local workspace, separate permissions'), el('p', 'Private cases, correspondence and collected contacts stay in the existing local workspace. Refresh diagnostics describe the public-source operation; do not paste credentials or private correspondence into source notes.'), el('p', 'The Sending limits tab edits local attempt caps and spacing only. Settings does not edit Proton credentials, TLS trust, assistant-host permissions, publication destinations, or account identity.'), el('p', 'Use the local Proton setup window for account enrollment and trusted connection settings. Existing workspace and template controls remain in the dashboard. Opening Settings never starts automatic source refresh, mailbox polling or sending.', 'settings-note'));
   const mailPrivacy = createMailPrivacy({host: panels.get('mail'), api, onChanged: onMailChanged});
   const sendingLimits = createSendingLimits({host: panels.get('sending'), api});
+  const requesterDefaults = createRequesterDefaults({host: panels.get('requester'), api, onChanged: onWorkspaceChanged});
   dialog.append(head, intro, tabs, ...panels.values());
 
   const resultDialog = el('dialog', undefined, 'settings-result-dialog');
@@ -331,6 +334,7 @@ export function createSettings({host, api, onSourcesChanged = async () => {}, on
     void loadInventory();
     if (selectedTab === 'mail') void mailPrivacy.load();
     if (selectedTab === 'sending') void sendingLimits.load();
+    if (selectedTab === 'requester') void requesterDefaults.load();
   }
   function close() {
     if (resultDialog.open) resultDialog.close();

@@ -6,7 +6,7 @@ import {readFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {chromium} from 'playwright';
 
-const assets = new Map(['index.html', 'app.js', 'workspace.js', 'send-controls.mjs', 'equipment-campaign.js', 'general-workspace.js',
+const assets = new Map(['index.html', 'app.js', 'workspace.js', 'send-controls.mjs', 'equipment-campaign.js', 'general-workspace.js', 'requester-defaults.js',
   'ma-contracts.mjs', 'ma-follow-up.js',
   'source-contracts.mjs', 'state-guides.js', 'state-guides.css', 'settings.js', 'settings.css', 'mail-privacy.js', 'mail-privacy-contracts.mjs', 'sending-limits.js', 'sending-limit-contracts.mjs',
   'map-controls.mjs', 'map-controls.css',

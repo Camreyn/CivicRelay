@@ -10,6 +10,13 @@ For the local mail connection, use `Open-Proton-Setup.ps1` in an interactive Win
 
 ## Templates
 
+Set your identity under **Settings → Requester defaults**. Name, address, phone,
+contact email, organization, title and signature each have an enable switch and
+a [referenceable variable](SETTINGS.md#requester-defaults). Disabled defaults
+are not inserted; per-request overrides remain possible. No project identity is
+a fallback for an optional signature. Defaults do not change existing cases or
+the enrolled sender. Review sensitive details before sending.
+
 Create a template with a title, subject/body text, reusable fields, and reviewed official-source entries. Use only `{{field}}` and `{{#if field}}…{{/if}}` placeholders. Saving an edit creates a new immutable version; requests retain the version used when they were created. Duplicating starts a separate template, and archiving keeps prior versions and existing requests intact.
 
 Export and import use JSON definitions only. They do not automatically copy workspace profile details, saved cases, messages, attachments, or previously entered values. Literal text you typed can still contain private information: review the file before sharing it.

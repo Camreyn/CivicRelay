@@ -47,7 +47,7 @@ ARGUMENTS={
  'desk_record_portal':{'case_id','tracking_reference','submitted_date','note'},
 }
 ARGUMENTS |= {
- 'desk_get_workspace':set(), 'desk_save_workspace':{'revision','name','organization','signature','requester_name','requester_address','requester_phone','starter_pack'},
+ 'desk_get_workspace':set(), 'desk_save_workspace':{'revision','name','organization','signature','requester_name','requester_address','requester_phone','requester_email','requester_title','identity_enabled','starter_pack'},
  'desk_list_templates':set(), 'desk_get_template':{'template_id'}, 'desk_save_template':{'template_id','revision','definition'},
  'desk_preview_template':{'template_id','values'}, 'desk_export_template':{'template_id'}, 'desk_import_template':{'definition'},
  'desk_list_campaigns':set(), 'desk_save_campaign':{'campaign_id','revision','name','description','template_id','date_start','date_end','targets'},

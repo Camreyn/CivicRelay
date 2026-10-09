@@ -50,7 +50,7 @@ function renderQueue(){
 }
 function renderStats(){const cases=recordCases(),counts=data.equipment_campaign?.counts;const stats=mode==='equipment'&&counts?[['States + DC tracked',counts.jurisdictions_tracked],['Started',counts.states_started],['Not started',counts.states_not_started],['Requests with send receipt',counts.requests_with_send_confirmation]]:[['Prepared requests',cases.length],['Awaiting reply',cases.filter(c=>status(c)==='waiting').length],['New replies',cases.filter(c=>status(c)==='new').length],mode==='general'?['Records received',cases.filter(c=>c.tracking?.coverage==='received').length]:['Ready for review',cases.filter(c=>status(c)==='ready').length]];$('stats').replaceChildren(...stats.map(([label,value])=>{const n=el('div',undefined,'stat');n.append(el('strong',String(value)),el('span',label));return n;}));$('state-count').textContent=mode==='equipment'?`${counts?.states_started||0} started · ${counts?.states_not_started??51} not started`:`${new Set(cases.map(c=>c.state).filter(Boolean)).size} states with requests`;}
 const op=async(tool,args={})=>(await api('/api/operation',{tool,arguments:args})).result;
-const settings=createSettings({host:$('settings-host'),api:op,onSourcesChanged:()=>stateGuides.refreshContacts(),onMailChanged:()=>refresh()});
+const settings=createSettings({host:$('settings-host'),api:op,onSourcesChanged:()=>stateGuides.refreshContacts(),onMailChanged:()=>refresh(),onWorkspaceChanged:async()=>{await refresh();await general.refreshIdentityDefaults();}});
 const stateGuides=createStateGuides({host:$('state-guides-host'),op,openSettings:()=>settings.open()});
 $('open-settings').onclick=()=>settings.open();
 $('mail-privacy-open').onclick=()=>settings.open('mail');
