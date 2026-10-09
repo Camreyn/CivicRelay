@@ -41,7 +41,9 @@ try {
   const before = sentinels.map(file => fs.readFileSync(file));
   const shell = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32/WindowsPowerShell/v1.0/powershell.exe');
   const result = spawnSync(shell, ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(old, 'scripts/apply-update.ps1')], {
-    cwd: old, encoding: 'utf8', windowsHide: true, shell: false, timeout: 300000, maxBuffer: 4_000_000,
+    // Windows CI's full synthetic suite takes about nine minutes on hosted runners.
+    // Keep a bounded rehearsal timeout without skipping or truncating those tests.
+    cwd: old, encoding: 'utf8', windowsHide: true, shell: false, timeout: 900000, maxBuffer: 4_000_000,
     env: {...workerEnvironment(), OS: 'Windows_NT', Path: process.env.Path || process.env.PATH,
       ComSpec: path.join(process.env.SystemRoot || 'C:\\Windows', 'System32/cmd.exe'), PATHEXT: '.COM;.EXE;.BAT;.CMD',
       LOCALAPPDATA: appdata, APPDATA: appdata, CRM_PROTON_PYTHON: python, RECORDS_DESK_NODE: process.execPath,
