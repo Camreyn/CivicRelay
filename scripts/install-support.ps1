@@ -147,6 +147,38 @@ function Assert-CivicRelayIdle([string]$Root) {
     if ($busy) { throw 'This checkout has active dashboard or MCP processes. Stop its connections before rerunning setup; no process was stopped.' }
 }
 
+function Assert-CivicRelayUpdateIdle([string]$Root) {
+    Assert-CivicRelayIdle $Root
+    # Other CivicRelay checkouts share the same Windows-user stores. Read public
+    # package identity only, never AppData, mail settings or host configuration.
+    $tail = '(?:app[\\/](?:tools\.mjs|server\.py|worker\.py)|connector[\\/](?:server\.mjs|worker\.py))'
+    $pattern = '(?:"(?<root>[A-Za-z]:[^"\r\n]+)[\\/]' + $tail + '"|(?<root>[A-Za-z]:[^\s"\r\n]+)[\\/]' + $tail + '(?=\s|$))'
+    $processes = Get-CimInstance Win32_Process -Filter "Name = 'node.exe' OR Name = 'python.exe' OR Name = 'pythonw.exe'" -ErrorAction Stop
+    foreach ($process in $processes) {
+        if (-not $process.CommandLine) { continue }
+        $matches = [regex]::Matches($process.CommandLine, $pattern)
+        foreach ($match in $matches) {
+            $candidate = $match.Groups['root'].Value
+            if ([IO.Path]::GetFullPath($candidate).TrimEnd('\') -ieq [IO.Path]::GetFullPath($Root).TrimEnd('\')) {
+                throw 'A CivicRelay dashboard, assistant connection or worker is still active. Finish its operation and stop its connections; no process was stopped.'
+            }
+            $package = Join-Path $candidate 'package.json'
+            if (Test-Path -LiteralPath $package -PathType Leaf) {
+                $info = Get-Item -LiteralPath $package -Force
+                if ($info.Length -gt 8192 -or ($info.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'A possible CivicRelay process could not be identified safely. Review active connections; no process was stopped.' }
+                try { $identity = [IO.File]::ReadAllText($package) | ConvertFrom-Json -ErrorAction Stop }
+                catch { throw 'A possible CivicRelay process has invalid public package metadata. Review active connections; no process was stopped.' }
+                if (@('civic-relay','civic-records-desk') -contains $identity.name) {
+                    throw 'Another CivicRelay installation has an active dashboard, assistant connection or worker. Finish its operation and stop both connections before updating; no process was stopped.'
+                }
+            }
+        }
+        if (-not $matches.Count -and $process.CommandLine -match ('(?:^|\s)"?(?:\.[\\/])?' + $tail + '(?:"|\s|$)')) {
+            throw 'A relative-path app/tool process may be CivicRelay. Review and stop the applicable connections first; no process was stopped.'
+        }
+    }
+}
+
 function Invoke-CivicRelayDependencies([string]$Root, [hashtable]$Inventory, [bool]$Developer) {
     $env:CRM_PROTON_PYTHON = $Inventory.python
     $env:RECORDS_DESK_NODE = $Inventory.node

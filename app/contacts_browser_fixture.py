@@ -10,6 +10,7 @@ from secure_store import Store
 from test_contacts import Protector
 import contacts
 import server
+server.UPDATES = None  # Synthetic fixtures never read real update preferences.
 
 
 if __name__ == '__main__':

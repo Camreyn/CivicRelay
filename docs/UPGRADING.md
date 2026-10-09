@@ -1,4 +1,10 @@
-# Updating CivicRelay to 0.8.0
+# Updating CivicRelay to 0.9.0
+
+Version 0.9.0 adds **Settings → Updates** with optional automatic release checks,
+approved package downloads, and a guided side-by-side installer. Older versions
+need one manual upgrade using this guide to obtain it. There are no new tool
+permissions or dependencies. Saved user data remains unchanged. For subsequent
+updates, read [the guided-update steps and recovery limits](UPDATES.md).
 
 Version 0.8.0 adds **Settings → Requester defaults**, reusable identity variables
 and per-field enable switches, and includes **Settings → Sending limits** with
@@ -56,7 +62,7 @@ the normal `Camreyn/CivicRelay` clone, not the separate CivicResultMaps reposito
 
 ### If installed from a ZIP
 
-Download the **Source code (zip)** for [v0.8.0](https://github.com/Camreyn/CivicRelay/releases/tag/v0.8.0).
+Download **civicrelay-v0.9.0.zip** for [v0.9.0](https://github.com/Camreyn/CivicRelay/releases/tag/v0.9.0).
 Extract the entire archive into a new, permanent local folder. Keep the old
 installation as a rollback/reference copy, but do not run its old mail tools.
 Move/copy no private AppData databases into either checkout.
@@ -79,7 +85,7 @@ The installer is not an automatic source updater.
 
 Open **Open CivicRelay.cmd**, reload the page, and restart the assistant
 connections using the updated paths. Use `desk_status` (or `/health`) to confirm
-`tooling_version: 0.8.0`; `proton_status` also reports `version: 0.8.0`.
+`tooling_version: 0.9.0`; `proton_status` also reports `version: 0.9.0`.
 If it reports an older version, an old process/connection is still in use.
 
 Assistant allowlists from before 0.7.0 may need these privacy additions:
@@ -98,7 +104,7 @@ entries cover requester defaults; reconnect to load their updated schemas.
 
 See the complete [configuration template](mcp-config.example.toml) and
 [assistant configuration upgrade](SETUP.md#upgrading-an-existing-assistant-configuration).
-The v0.8.0 total is 68 records tools plus 8 mail tools; the WebMCP budget stays 64.
+The v0.9.0 total is still 68 records tools plus 8 mail tools; the WebMCP budget stays 64.
 Low-level `proton_read_message` additionally requires `mail_scope_id` from the
 latest `proton_list_messages` result. Restart connections to load the new schema.
 

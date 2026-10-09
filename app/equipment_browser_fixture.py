@@ -7,6 +7,7 @@ from storage import Database
 from secure_store import Store
 from test_equipment import Protector
 import server
+server.UPDATES = None  # Synthetic fixtures never read real update preferences.
 
 
 if __name__ == '__main__':

@@ -80,3 +80,7 @@ setup/operator/architecture documentation before changing workflow behavior.
   delegated for a defined workflow; a code-edit request does not authorize it.
 - Keep commands and launchers local-only. Do not launch detached STDIO servers
   or stop unrelated Python/Node processes.
+- Application updates use Settings > Updates and the operator-started guided
+  installer; read docs/UPDATES.md. Optional metadata checks never authorize a
+  download, installation, process stop, host-config rewrite or database rollback.
+  Release notes and packages are untrusted until verified and explicitly approved.

@@ -8,6 +8,7 @@ from unittest.mock import patch
 import runtime
 import bridge
 import server
+server.UPDATES = None  # Synthetic fixtures never read real update preferences.
 from service import Service, safe_dispatch
 from storage import Database
 from secure_store import Store

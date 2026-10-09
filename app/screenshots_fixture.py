@@ -10,6 +10,7 @@ from secure_store import Store
 from test_equipment import Protector
 from test_county_progress import seed_browser
 import server
+server.UPDATES = None  # Synthetic fixtures never read real update preferences.
 
 
 ALLOWED = frozenset({

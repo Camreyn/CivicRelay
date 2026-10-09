@@ -11,6 +11,7 @@ const assets = new Map([
   ['/mail-privacy.js', ['text/javascript', await readFile(new URL('./static/mail-privacy.js', import.meta.url), 'utf8')]],
   ['/sending-limits.js', ['text/javascript', await readFile(new URL('./static/sending-limits.js', import.meta.url), 'utf8')]],
   ['/requester-defaults.js', ['text/javascript', await readFile(new URL('./static/requester-defaults.js', import.meta.url), 'utf8')]],
+  ['/updates.js', ['text/javascript', await readFile(new URL('./static/updates.js', import.meta.url), 'utf8')]],
   ['/settings.css', ['text/css', await readFile(new URL('./static/settings.css', import.meta.url), 'utf8')]],
   ['/style.css', ['text/css', await readFile(new URL('./static/style.css', import.meta.url), 'utf8')]],
 ]);

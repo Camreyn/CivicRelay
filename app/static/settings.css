@@ -54,3 +54,9 @@
 .settings-result-dialog[data-outcome=error]{border-top:4px solid #bd644c}
 .settings-result-dialog>button{margin-top:14px}
 @media(max-width:600px){.settings-dialog,.settings-result-dialog{padding:18px;max-height:94vh}.settings-heading{align-items:flex-start}.settings-heading h2{font-size:22px}.settings-close{font-size:13px}.settings-tabs{gap:2px}.settings-tabs [role=tab]{padding:8px;font-size:13px}.settings-source-toolbar{align-items:flex-start;flex-direction:column;gap:8px}.settings-source-facts{grid-template-columns:1fr;gap:2px}.settings-source-facts dd{margin-bottom:8px}.settings-source{padding:14px}}
+.settings-update-notes { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 18rem; overflow: auto; }
+.settings-update-preference { display: flex; align-items: flex-start; gap: .5rem; margin: 1rem 0; }
+.settings-update-preference input[type=checkbox] { width: auto; flex-shrink: 0; margin-top: .3rem; }
+.settings-update-toolbar { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1rem 0; }
+#settings-panel-updates ol { padding-left: 1.5rem; overflow-wrap: anywhere; }
+#settings-panel-updates li { margin: .75rem 0; }

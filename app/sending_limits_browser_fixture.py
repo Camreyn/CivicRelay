@@ -7,6 +7,14 @@ from unittest.mock import patch
 import runtime
 import connector
 import server
+class FixtureUpdates:
+    def status(self):
+        return {'installed_version':'0.9.0','automatic_checks':False,'last_checked_at':None,
+            'latest':None,'approved':None,'update_available':False}
+    def operation(self, action, args):
+        if action != 'status' or args: raise AssertionError('Synthetic fixture forbids update actions.')
+        return self.status()
+server.UPDATES = FixtureUpdates()  # Never read real preferences or public releases.
 from service import Service, safe_dispatch
 from storage import Database
 from secure_store import Store

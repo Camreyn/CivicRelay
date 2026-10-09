@@ -34,6 +34,23 @@ or another checkout. That non-secret fingerprint is not authentication.
 
 ## Storage and identity
 
+### Application update boundary
+
+`app/updates.py` is a dashboard-only controller behind the same-origin/session
+`/api/updates` endpoint. It never imports mail/storage modules. Opt-in checks are
+visible-page metadata checks, not a background scheduler. The fixed public
+GitHub release, tag commit, asset digest and bounded source-only archive are
+validated before an exact approved package is cached in ignored `.local/updates`.
+No updater operation is exposed through native MCP or WebMCP tools.
+
+`Update CivicRelay.cmd` invokes the interactive trusted local helper, which
+rechecks the archive, refuses old-root dashboard/MCP/worker activity and extracts
+only public source into a new sibling folder. Existing installer functions
+install locked dependencies/run synthetic tests; private stores/config/research
+are neither copied nor changed. Only validated runtime executable paths are
+saved in the candidate. Activation and assistant path changes are manual;
+there is no automatic data rollback or process killing. See [updates](UPDATES.md).
+
 `app/storage.py` retains the case/message/artifact workflow database.
 `connector/secure_store.py` retains encrypted settings, immutable drafts,
 send-attempt accounting and receipts. Sensitive payloads use Windows DPAPI under
