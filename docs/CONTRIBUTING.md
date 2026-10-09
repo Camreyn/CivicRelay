@@ -57,6 +57,10 @@ product. A records-data source update does not authorize production publication.
   permission to send email, submit records, create data issues or change accounts.
 - Verify the remote commit and Windows CI result. Record any verification limits;
   do not claim real delivery or production ingestion based on mocked tests.
+- Build `npm.cmd run release:package` from the clean exact commit, rehearse the
+  source-only ZIP in a disposable installation, and upload it to the matching
+  stable release. Confirm the official asset SHA-256 before announcing guided
+  update support. Follow [package trust and release requirements](UPDATES.md#maintainer-release-package).
 
 The source repository's `private: true` npm flag prevents accidental npm package
 publication; it does not make the GitHub repository private. Assume every pushed

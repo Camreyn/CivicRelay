@@ -73,6 +73,8 @@ try {
   assert.equal(response.result.connector.send_window.reason,'daily_limit');assert.equal(response.result.connector.sending_enabled,false);
   await page.getByRole('tab',{name:'Sending limits',exact:true}).press('Home');
   await page.getByRole('tab',{name:'Sources',exact:true}).press('End');
+  assert.equal(await page.getByRole('tab',{name:'Updates',exact:true}).getAttribute('aria-selected'),'true');
+  await page.getByRole('tab',{name:'Updates',exact:true}).press('ArrowLeft');
   assert.equal(await page.getByRole('tab',{name:'Sending limits',exact:true}).getAttribute('aria-selected'),'true');
   const screenshot=path.join(tmpdir(),'civicrelay-sending-limits-synthetic.png');await page.screenshot({path:screenshot});
   assert.equal(operations.some(x=>/sync_mail|send_email|send_draft|publish|capture|export/.test(x.tool)),false);

@@ -1,8 +1,9 @@
-// Local settings read saved metadata; remote operations are always explicit.
+// Local settings; public-release checks alone may run under the opt-in preference.
 import {createMailPrivacy} from './mail-privacy.js';
 import {createSendingLimits} from './sending-limits.js';
 import {createRequesterDefaults} from './requester-defaults.js';
-export function createSettings({host, api, onSourcesChanged = async () => {}, onMailChanged = async () => {}, onWorkspaceChanged = async () => {}}) {
+import {createUpdates} from './updates.js';
+export function createSettings({host, api, onSourcesChanged = async () => {}, onMailChanged = async () => {}, onWorkspaceChanged = async () => {}, onUpdateAvailable = () => {}}) {
   let inventory = [], loading = false, refreshing = false, readingFile = false, pendingResult = null;
   let opener = null, selectedTab = 'sources', loadVersion = 0;
   const imports = new Map();
@@ -53,7 +54,7 @@ export function createSettings({host, api, onSourcesChanged = async () => {}, on
   tabs.setAttribute('role', 'tablist');
   tabs.setAttribute('aria-label', 'Settings sections');
   const panels = new Map(), tabButtons = new Map();
-  for (const [id, label] of [['sources', 'Sources'], ['requester', 'Requester defaults'], ['guides', 'State guides'], ['privacy', 'Privacy & accounts'], ['mail', 'Mail privacy'], ['sending', 'Sending limits']]) {
+  for (const [id, label] of [['sources', 'Sources'], ['requester', 'Requester defaults'], ['guides', 'State guides'], ['privacy', 'Privacy & accounts'], ['mail', 'Mail privacy'], ['sending', 'Sending limits'], ['updates', 'Updates']]) {
     const tab = button(label, () => selectTab(id));
     tab.id = `settings-tab-${id}`;
     tab.setAttribute('role', 'tab');
@@ -89,6 +90,7 @@ export function createSettings({host, api, onSourcesChanged = async () => {}, on
     if (id === 'mail') void mailPrivacy.load();
     if (id === 'sending') void sendingLimits.load();
     if (id === 'requester') void requesterDefaults.load();
+    if (id === 'updates') void updates.load();
   }
 
   const sourcePanel = panels.get('sources');
@@ -111,6 +113,7 @@ export function createSettings({host, api, onSourcesChanged = async () => {}, on
   const mailPrivacy = createMailPrivacy({host: panels.get('mail'), api, onChanged: onMailChanged});
   const sendingLimits = createSendingLimits({host: panels.get('sending'), api});
   const requesterDefaults = createRequesterDefaults({host: panels.get('requester'), api, onChanged: onWorkspaceChanged});
+  const updates = createUpdates({host: panels.get('updates'), onAvailable: onUpdateAvailable});
   dialog.append(head, intro, tabs, ...panels.values());
 
   const resultDialog = el('dialog', undefined, 'settings-result-dialog');
@@ -335,10 +338,11 @@ export function createSettings({host, api, onSourcesChanged = async () => {}, on
     if (selectedTab === 'mail') void mailPrivacy.load();
     if (selectedTab === 'sending') void sendingLimits.load();
     if (selectedTab === 'requester') void requesterDefaults.load();
+    if (selectedTab === 'updates') void updates.load();
   }
   function close() {
     if (resultDialog.open) resultDialog.close();
     if (dialog.open) dialog.close();
   }
-  return {open, close};
+  return {open, close, startUpdates: updates.start};
 }

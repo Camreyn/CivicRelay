@@ -23,8 +23,8 @@ The current source also includes the guided Windows installer, county request
 maps and contact research, map controls, source-linked deadline tracking,
 Massachusetts response reviews, state guides, and Settings/source refresh.
 These additions, requester defaults, configurable sending limits, the mailbox-privacy
-fix, and empty-label compatibility are included in
-[v0.8.0](https://github.com/Camreyn/CivicRelay/releases/tag/v0.8.0).
+fix, empty-label compatibility, and the [guided updater](docs/UPDATES.md) are included in
+[v0.9.0](https://github.com/Camreyn/CivicRelay/releases/tag/v0.9.0).
 See [updating an existing installation](docs/UPGRADING.md).
 
 **Using an account with personal or pre-existing email?** Version 0.7.0 blocks
@@ -35,7 +35,7 @@ removed **locally only**, without deleting Proton originals or request history.
 Read the [privacy and recovery guide](docs/MAIL-PRIVACY.md).
 
 **Empty Proton label shows “Mailbox search failed or was too large”?** Update to
-0.8.0 and restart the dashboard and assistant connections. Empty selected labels
+0.9.0 and restart the dashboard and assistant connections. Empty selected labels
 now return zero messages normally. Keep your existing privacy scope and history
 choice; no dummy message, credential reset or broader mailbox access is needed.
 
@@ -73,6 +73,10 @@ See [how these screenshots are safely maintained](docs/SCREENSHOTS.md).
 
 ## What it does
 
+- Adds **Settings → Updates** with optional daily checks (off by default),
+  explicitly approved package downloads, and a guided installer. It installs
+  into a new folder and leaves all existing private stores and local edits intact;
+  users review the dashboard/assistant switch-over. See [updates](docs/UPDATES.md).
 - Adds **Settings → Requester defaults**:
   private name, address, phone, contact email, organization, title and signature
   with per-field enable switches and [reusable template variables](docs/SETTINGS.md#requester-defaults).
@@ -135,7 +139,7 @@ Mail Bridge running and signed in. Existing credentials, correspondence, drafts,
 and receipts remain in their original encrypted Windows-user storage, outside
 this Git repository.
 
-After updating to 0.8.0, restart the CivicRelay dashboard when no operation is
+After updating to 0.9.0, restart the CivicRelay dashboard when no operation is
 in progress, reload its page, and reconnect its two native tool connections.
 The old `confirmation` tool arguments have been removed; use the current schemas.
 No credential re-enrollment is needed. If no scope is saved, make the one-time
@@ -151,7 +155,7 @@ to review the missing entries. Existing host permissions remain separate.
 
 On a **64-bit Intel/AMD Windows PC** (Windows 11 recommended):
 
-1. Download **Source code (zip)** from [v0.8.0](https://github.com/Camreyn/CivicRelay/releases/tag/v0.8.0)
+1. Download **civicrelay-v0.9.0.zip** from [v0.9.0](https://github.com/Camreyn/CivicRelay/releases/tag/v0.9.0)
    and extract the **entire** archive into a permanent local folder, or clone
    this repository. Git is not required for the ZIP option. Do not use the
    older v0.6.1 release ZIP for these instructions.
@@ -457,6 +461,7 @@ run against another person's mailbox. Do not run two dashboards on port 8766.
 - [0.7.0 mailbox-privacy release notes](docs/RELEASE-0.7.0.md)
 - [0.7.1 empty-label compatibility patch notes](docs/RELEASE-0.7.1.md)
 - [0.8.0 requester-defaults and sending-limits release notes](docs/RELEASE-0.8.0.md)
+- [Guided application updates](docs/UPDATES.md) and [0.9.0 release notes](docs/RELEASE-0.9.0.md)
 - [Migration, compatibility, and rollback](docs/MIGRATION.md)
 
 ## Git and publication

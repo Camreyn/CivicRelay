@@ -176,6 +176,21 @@ assistant-host permissions, send enablement or TLS trust. Its separate Sending
 limits tab edits only the bounded local attempt policy with explicit user
 authority. See [Settings](SETTINGS.md) and [sending limits](SENDING-LIMITS.md).
 
+## Application update trust
+
+The [guided updater](UPDATES.md) adds only fixed public-release HTTPS requests and
+approved source-package installation into a new folder. Automatic checks are
+opt-in metadata checks, never downloads or installs. An exact version/commit/
+GitHub SHA-256 digest and internal file hashes bind the approval; archive/path/
+link/size checks precede extraction and execution. This is repository/HTTPS
+integrity, not an independent publisher signature. A compromised maintainer,
+GitHub, or same-user process is outside that boundary. Update notes are data,
+never instructions. No arbitrary URL/path/command, new native/page tool, mailbox
+read, process kill, private-store copy/migration, host-permission change or
+automatic downgrade is exposed. The interactive installer requires a second
+explicit approval and no active old-installation processes. Old app files and
+ignored directories remain intact. A code update does not back up user data.
+
 ## Backups and another PC
 
 The migration preserves the same user's live data in place. A Git clone is a

@@ -1,11 +1,22 @@
 # Settings, source refresh and state guides
 
-Open **Settings** in the dashboard header. The current source has six keyboard-accessible
+Open **Settings** in the dashboard header. The current source has seven keyboard-accessible
 sections: **Sources**, **Requester defaults**, **State guides**, **Privacy & accounts**, **Mail privacy**,
-and **Sending limits** (requester defaults and sending limits are included in v0.8.0). Use the arrow,
+**Sending limits**, and **Updates** (guided updates are included in v0.9.0). Use the arrow,
 Home and End keys to move between section tabs. Escape or **Close settings** closes
 the panel without changing a case. The panel does not replace the workspace,
 template, campaign or local Proton setup controls.
+
+## Updates
+
+Check the installed/latest stable version, review literal release notes, and
+optionally enable daily metadata checks while the dashboard is visible. Checks
+start disabled and never download/install automatically. **Approve and download
+update** verifies the exact package and shows the next steps; it does not replace
+application files. **Update CivicRelay.cmd** asks for installation approval,
+refuses active operations, and installs into a new sibling folder, leaving the
+old app and all private stores untouched. Switching shortcuts and assistant
+paths is a reviewed manual step. See [guided updates](UPDATES.md).
 
 ## Requester defaults
 

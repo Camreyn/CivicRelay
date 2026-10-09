@@ -9,6 +9,7 @@ from secure_store import Store
 from test_contacts import Protector
 from test_county_progress import seed_browser
 import server
+server.UPDATES = None  # Synthetic fixtures never read real update preferences.
 
 if __name__=='__main__':
     with tempfile.TemporaryDirectory(prefix='relay-county-map-') as temp:

@@ -7,7 +7,7 @@ import {chromium} from 'playwright';
 
 const origin = 'http://mail-privacy.test';
 const assets = new Map();
-for(const name of ['mail-privacy.js','sending-limits.js','requester-defaults.js','settings.js','settings.css','style.css'])assets.set('/'+name,await readFile(new URL('./static/'+name,import.meta.url),'utf8'));
+for(const name of ['mail-privacy.js','sending-limits.js','requester-defaults.js','updates.js','settings.js','settings.css','style.css'])assets.set('/'+name,await readFile(new URL('./static/'+name,import.meta.url),'utf8'));
 const html = `<!doctype html><html lang="en"><meta charset="utf-8"><title>Synthetic privacy test</title><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/settings.css"><main id="host"></main><script type="module">
 import {createSettings} from '/settings.js';
 window.calls=[];window.changed=0;window.fail=false;window.hold=null;

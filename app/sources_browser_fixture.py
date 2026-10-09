@@ -10,6 +10,7 @@ from test_equipment import Protector
 from test_public_sources import sample
 import public_sources
 import server
+server.UPDATES = None  # Synthetic fixtures never read real update preferences.
 
 if __name__=='__main__':
     with tempfile.TemporaryDirectory(prefix='relay-sources-browser-') as temporary:

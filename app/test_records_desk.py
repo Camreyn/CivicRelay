@@ -347,14 +347,14 @@ class HttpTests(unittest.TestCase):
         try:
             code,_,body=request('/health');health=json.loads(body)
             self.assertEqual(code,200);self.assertEqual(health['distribution'],'civic-records-desk')
-            self.assertEqual(health['package_version'],'0.8.0');self.assertEqual(health['tooling_version'],'0.8.0')
+            self.assertEqual(health['package_version'],'0.9.0');self.assertEqual(health['tooling_version'],'0.9.0')
             self.assertEqual(health['installation_id'],hashlib.sha256(str(server.ROOT.parent).lower().encode()).hexdigest())
             self.assertEqual(request(headers={'Host':'attacker.example'})[0],403)
             self.assertEqual(request('/api/bootstrap')[0],403)
             self.assertEqual(request(headers={'Origin':'https://evil.example'})[0],403)
             code,headers,_=request();self.assertEqual(code,200);cookie=headers['Set-Cookie'].split(';')[0]
             self.assertIn('HttpOnly',headers['Set-Cookie']);self.assertIn("frame-ancestors 'none'",headers['Content-Security-Policy'])
-            with patch('server.invoke',return_value={'ok':True,'result':{'synthetic':True}}) as mocked:
+            with patch('server.UPDATES',None), patch('server.invoke',return_value={'ok':True,'result':{'synthetic':True}}) as mocked:
                 self.assertEqual(request('/api/bootstrap',{'Cookie':cookie})[0],200)
                 payload=json.dumps({'tool':'desk_status','arguments':{}})
                 self.assertEqual(request('/api/operation',{'Cookie':cookie,'Content-Type':'application/json'},'POST',payload)[0],403)

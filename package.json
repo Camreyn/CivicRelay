@@ -1,6 +1,6 @@
 {
   "name": "civic-relay",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "private": true,
   "type": "module",
   "description": "Windows-local records-request dashboard and guarded Proton Mail Bridge tools",
@@ -12,15 +12,18 @@
   "scripts": {
     "start": "node scripts/start.mjs",
     "test": "npm run test:node && npm run test:python && npm run test:docs",
-    "test:node": "node --test app/tools.test.mjs app/page-tools.test.mjs app/workspace.test.mjs app/send-controls.test.mjs app/map-controls.test.mjs connector/server.test.mjs scripts/standalone.test.mjs scripts/configuration.test.mjs scripts/publication.test.mjs scripts/install.test.mjs",
+    "test:node": "node --test app/tools.test.mjs app/page-tools.test.mjs app/workspace.test.mjs app/send-controls.test.mjs app/map-controls.test.mjs connector/server.test.mjs scripts/standalone.test.mjs scripts/configuration.test.mjs scripts/publication.test.mjs scripts/install.test.mjs scripts/update-install.test.mjs",
     "test:install": "node --test scripts/install.test.mjs",
     "test:python": "node scripts/test-python.mjs",
-    "test:browser": "node app/send-flow.browser.test.mjs && node app/equipment.browser.test.mjs && node app/general.browser.test.mjs && node app/deadlines.browser.test.mjs && node app/contacts.browser.test.mjs && node app/county-progress.browser.test.mjs && node app/ma-follow-up.browser.test.mjs && node app/settings.browser.test.mjs && node app/sources.browser.test.mjs && node app/mail-privacy.browser.test.mjs && node app/mail-sync.browser.test.mjs && node app/sending-limits.browser.test.mjs && node app/requester-defaults.browser.test.mjs",
+    "test:browser": "node app/send-flow.browser.test.mjs && node app/equipment.browser.test.mjs && node app/general.browser.test.mjs && node app/deadlines.browser.test.mjs && node app/contacts.browser.test.mjs && node app/county-progress.browser.test.mjs && node app/ma-follow-up.browser.test.mjs && node app/settings.browser.test.mjs && node app/sources.browser.test.mjs && node app/mail-privacy.browser.test.mjs && node app/mail-sync.browser.test.mjs && node app/sending-limits.browser.test.mjs && node app/requester-defaults.browser.test.mjs && node app/updates.browser.test.mjs && node app/updates-integrated.browser.test.mjs",
     "test:live-readonly": "node app/live-send-readonly-smoke.mjs",
     "snapshot:refresh": "node scripts/refresh-public-snapshot.mjs",
     "docs:generate": "node scripts/generate-tool-reference.mjs",
     "test:docs": "node scripts/check-docs.mjs",
-    "publish:check": "node scripts/check-publish-safety.mjs"
+    "publish:check": "node scripts/check-publish-safety.mjs",
+    "release:package": "node scripts/build-update-package.mjs",
+    "test:update-package": "node scripts/rehearse-update-package.mjs",
+    "test:updates": "node app/updates.browser.test.mjs && node app/updates-integrated.browser.test.mjs"
   },
   "dependencies": { "@modelcontextprotocol/server": "2.0.0" },
   "devDependencies": { "@modelcontextprotocol/client": "2.3.1", "playwright": "1.61.1", "typescript": "5.9.3" }

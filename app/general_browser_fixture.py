@@ -15,6 +15,7 @@ import bridge
 import mailbox
 import intake
 import server
+server.UPDATES = None  # Synthetic fixtures never read real update preferences.
 
 class FakeSMTP:
     def mail(self, *_): return 250, b'ok'

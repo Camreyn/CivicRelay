@@ -8,6 +8,7 @@ import secrets
 import urllib.parse
 from runtime import PYTHON, run
 from service import ARGUMENTS
+from updates import Updates, UpdateError
 
 ROOT = Path(__file__).resolve().parent
 PORT = 8766
@@ -15,6 +16,8 @@ ORIGIN = f"http://127.0.0.1:{PORT}"
 COOKIE = secrets.token_urlsafe(32)
 # Added for standalone extraction: distinguish this checkout from legacy servers.
 INSTALLATION_ID = hashlib.sha256(str(ROOT.parent).lower().encode('utf-8')).hexdigest()
+try: UPDATES = Updates(ROOT.parent)
+except Exception: UPDATES = None  # Optional updater failure cannot prevent dashboard startup.
 def invoke(name,args):
     result=run([PYTHON,'-E','-s','-S',str(ROOT/'worker.py')],
                payload=json.dumps({'tool':name,'arguments':args}).encode(),timeout=220)
@@ -47,14 +50,16 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if not self.allowed(): return self.json({'ok':False,'error':'Local origin required.'},403)
         route=urllib.parse.urlsplit(self.path).path
-        if route=='/health': return self.json({'ok':True,'app':'CivicResultMaps Records Desk','local_only':True,'tooling_version':'0.8.0',
-            'distribution':'civic-records-desk','package_version':'0.8.0','installation_id':INSTALLATION_ID})
+        if route=='/health': return self.json({'ok':True,'app':'CivicResultMaps Records Desk','local_only':True,'tooling_version':'0.9.0',
+            'distribution':'civic-records-desk','package_version':'0.9.0','installation_id':INSTALLATION_ID})
         if route.startswith('/api/'):
             if not self.allowed(True): return self.json({'ok':False,'error':'Open the local dashboard first.'},403)
             if route=='/api/bootstrap':
                 try:
                     result=invoke('desk_list_cases',{})
-                    return self.json({'ok':True,**result['result']} if result['ok'] else result)
+                    try: update_preferences=UPDATES.status()
+                    except Exception: update_preferences=None  # Update failure must not block records work.
+                    return self.json({'ok':True,**result['result'],'update_preferences':update_preferences} if result['ok'] else result)
                 except Exception:return self.json({'ok':False,'error':'Could not open private records. Use your normal Windows desktop session.'},500)
             return self.json({'ok':False,'error':'Unknown route.'},404)
         files={'/':('index.html','text/html; charset=utf-8'),'/app.js':('app.js','text/javascript; charset=utf-8'),'/workspace.js':('workspace.js','text/javascript; charset=utf-8'),
@@ -68,6 +73,7 @@ class Handler(BaseHTTPRequestHandler):
                '/state-guides.js':('state-guides.js','text/javascript; charset=utf-8'),
                '/state-guides.css':('state-guides.css','text/css; charset=utf-8'),
                '/settings.js':('settings.js','text/javascript; charset=utf-8'),
+               '/updates.js':('updates.js','text/javascript; charset=utf-8'),
                '/requester-defaults.js':('requester-defaults.js','text/javascript; charset=utf-8'),
                '/mail-privacy.js':('mail-privacy.js','text/javascript; charset=utf-8'),
                '/sending-limits.js':('sending-limits.js','text/javascript; charset=utf-8'),
@@ -94,13 +100,18 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if not self.allowed(True) or self.headers.get('Origin')!=ORIGIN or self.headers.get('X-Records-Desk')!='1':
             return self.json({'ok':False,'error':'A same-origin dashboard request is required.'},403)
-        if self.path!='/api/operation' or self.headers.get_content_type()!='application/json':
+        if self.path not in ('/api/operation','/api/updates') or self.headers.get_content_type()!='application/json':
             return self.json({'ok':False,'error':'Unknown operation endpoint.'},400)
         try:
             size=int(self.headers.get('Content-Length','0'))
             if not 1<=size<=300000:raise ValueError()
             self.connection.settimeout(15)
             payload=json.loads(self.rfile.read(size))
+            if self.path=='/api/updates':
+                if not isinstance(payload,dict) or set(payload)!={'action','arguments'}:raise ValueError()
+                try:return self.json({'ok':True,'result':UPDATES.operation(payload['action'],payload['arguments'])})
+                except UpdateError as error:return self.json({'ok':False,'error':str(error)},400)
+                except Exception:return self.json({'ok':False,'error':'The updater stopped safely. Reload update status; no private diagnostics were exposed.'},400)
             if set(payload)!={'tool','arguments'} or payload['tool'] not in ARGUMENTS:raise ValueError()
             result=invoke(payload['tool'],payload['arguments'])
             return self.json(result,200 if result.get('ok') else 400)

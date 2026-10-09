@@ -11,7 +11,7 @@ permissions:
 jobs:
   synthetic-verification:
     runs-on: windows-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     defaults:
       run:
         shell: pwsh
@@ -44,3 +44,7 @@ jobs:
         run: npm.cmd exec -- playwright install chromium
       - name: Synthetic browser workflow (no live mail or approval windows)
         run: npm.cmd run test:browser
+      - name: Package exact source and rehearse approved update with fictional stores
+        run: |
+          npm.cmd run release:package
+          npm.cmd run test:update-package
