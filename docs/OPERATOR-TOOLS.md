@@ -194,7 +194,7 @@ lower-level `proton_send_draft` with `draft_id` and `expected_digest`. Publish w
 Legacy approval arguments are rejected as unknown fields. After upgrading, reload
 the dashboard and reconnect the two native tool servers before using new schemas.
 
-## Existing operator's email-only routing preference
+## Email routing
 
 The user requires email handling rather than agency website submissions. Find a
 current official email route; if only a general contact is verified, distinguish a
@@ -209,24 +209,29 @@ performs the action without another CivicRelay prompt.
 
 ## Requester privacy
 
-Each installation supplies its own private identity. A template may reference
-private name, postal address or phone only as an explicitly required declared
-field. That declaration is **not** evidence of an agency's legal requirement or
-user authorization; verify both before sending. Ordinary signature/organization
-values are included only where a template references them. Keep home addresses
-out of shared signatures and literal template definitions.
+Each installation supplies its own identity in **Settings → Requester defaults**
+or through `desk_get_workspace` / `desk_save_workspace`. Name, address, phone,
+contact email, organization, title and signature have separate `identity_enabled`
+switches. Read these settings before drafting; use enabled saved defaults only
+where the template references their variables. Explicit per-request values,
+including blank strings, take precedence. Disabled defaults are not inserted.
+See [the variable reference](SETTINGS.md#requester-defaults).
 
-The following preference applies to the existing CivicResultMaps operator,
-not automatically to a new user's identity or eligibility:
+Never invent a name, organization, title, email or signature. No bundled project
+identity is a fallback. An omitted optional signature stays blank when no enabled
+saved signature is available; it must not change the user's organization or
+requester name. Do not rewrite a reusable template or its literal identity text
+merely because an optional field was omitted. Requester contact email is not the
+mailbox's From identity and does not switch the sending account.
 
-The user permits use of their personal name and postal address only when the
-specific recipient's current submission rules require those fields. A field on
-an optional form is not by itself proof that it is mandatory for an email.
-Otherwise use Civic Result Maps Staff and the project email address. Do not
-silently add a home address to a shared signature or every state request.
+Enabling a default authorizes its use as a template default, not sending,
+publication, a legal declaration or an agency's identity requirement. A required
+template field is not proof of a legal requirement. Verify the recipient's rules
+and the user's intended disclosure before sending; do not infer required fields
+from optional forms. Keep addresses out of shared signature text and definitions.
+Changing defaults does not rewrite saved cases or immutable prepared drafts.
 
-Use approved values from the private workflow only after verifying the specific
-recipient's actual requirement and the user's authorization for that purpose.
+Use private values only for the user's authorized workflow.
 Do not copy these values into plaintext review files, public GitHub issues,
 repository files, web searches, or unrelated requests. The private case note
 records the authorized purpose without repeating the values. Review the full

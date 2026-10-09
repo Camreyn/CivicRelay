@@ -1,6 +1,7 @@
 // Same-user private configuration. Never render imported definitions as HTML.
+import {identityForm, requesterFields} from './requester-defaults.js';
 export function createGeneralWorkspace({$,el,op,notice,openCase,beforeNavigate=()=>{},afterChange=async()=>{},toggleMap=()=>{}}) {
- let workspace={},account={},templates=[],campaigns=[],destinations=[];
+ let workspace={},account={},templates=[],campaigns=[],destinations=[],identityInputs=[];
  const host=()=>$('general-workspace'),value=id=>$(id)?.value||'';
  const latest=t=>t.versions.at(-1),definition=t=>latest(t).definition;
  const labelFor=s=>s.replaceAll('_',' ');
@@ -34,15 +35,18 @@ export function createGeneralWorkspace({$,el,op,notice,openCase,beforeNavigate=(
   ]){const part=el('section',undefined,'panel general-panel');part.append(el('h2',title));const list=el('ul',undefined,'general-list');for(const item of items)list.append(draw(item));if(!items.length)list.append(el('li',`No ${title.toLowerCase()} yet.`,'general-empty'));part.append(list);grid.append(part);}
   host().append(grid);
  }
- function settings(){
+ async function settings(){
+  const current=await op('desk_get_workspace');workspace=current.workspace;account=current.account||{};
   const p=screen('LOCAL WORKSPACE','Profile and starter selection');
   help(p,account.configured?`Enrolled sender: ${account.display_name||''} <${account.email}>`:'No mailbox enrolled. Use Open-Proton-Setup.ps1 to enter Bridge credentials only in the local setup window.');
-  help(p,'Personal details are optional here. Use them in a request only when required and authorized. Keep addresses out of shared signatures.');
+  help(p,'Identity defaults are optional and private. Use the switches to choose which saved values templates may reference. These are the same defaults as Settings → Requester defaults; they do not establish legal requirements.');
   const f=el('div',undefined,'general-form');
-  for(const [id,label,type,key] of [['ws-name','Workspace name','input','name'],['ws-org','Organization','input','organization'],['ws-sign','Signature','textarea','signature'],['ws-rname','Requester name','input','requester_name'],['ws-raddress','Requester address','textarea','requester_address'],['ws-rphone','Requester phone','input','requester_phone']])field(f,id,label,type,workspace[key]);
+  field(f,'ws-name','Workspace name','input',workspace.name);
+  const profile=el('div',undefined,'requester-defaults-grid');f.append(profile);
+  const identity=identityForm({host:profile,workspace,account,prefix:'ws'});
   select(f,'ws-pack','Starter pack',[['blank','Blank workspace'],['civicresultmaps','CivicResultMaps starter pack']],workspace.starter_pack);
   f.append(actions(button('Save private workspace',async()=>{
-   await op('desk_save_workspace',{revision:workspace.revision,name:value('ws-name'),organization:value('ws-org'),signature:value('ws-sign'),requester_name:value('ws-rname'),requester_address:value('ws-raddress'),requester_phone:value('ws-rphone'),starter_pack:value('ws-pack')});
+   await op('desk_save_workspace',{revision:workspace.revision,name:value('ws-name'),...identity.read(),starter_pack:value('ws-pack')});
    await changed('Workspace saved privately. Mailbox credentials and identity were not changed.');
   },'primary'),button('Back',render)));p.append(f);
  }
@@ -55,7 +59,7 @@ export function createGeneralWorkspace({$,el,op,notice,openCase,beforeNavigate=(
   const old=record?structuredClone(definition(record)):{schema_version:1,title:'',fields:[],subject:'',body:'',sources:[]};
   if(copy){old.title='Copy of '+old.title;old.archived=false;}
   const p=screen('TEMPLATE EDITOR',record&&!copy?'New version':'New template'),f=el('div',undefined,'general-form');
-  help(p,'Use {{field}} and optional {{#if field}}…{{/if}} blocks. Built-ins include agency, jurisdiction, state, date_start, date_end, organization, signature and requester_email. Personal name/address/phone require explicitly required fields.');
+  help(p,'Use {{field}} and optional {{#if field}}…{{/if}} blocks. Built-ins include agency, jurisdiction, state, date_start, date_end, organization, signature, requester_name, requester_address, requester_phone, requester_email and requester_title. Enabled requester defaults render only where referenced; a required field means the template needs a value, not that the law requires it.');
   field(f,'td-title','Title','input',old.title);field(f,'td-category','Category','input',old.category||'');field(f,'td-subject','Subject','input',old.subject);field(f,'td-body','Body','textarea',old.body).rows=12;
   field(f,'td-review','Template review date (optional)','input',old.review_date||'').type='date';
   const getFields=rows(f,'template-fields','Fields','Field',old.fields,(r,x)=>{
@@ -71,7 +75,8 @@ export function createGeneralWorkspace({$,el,op,notice,openCase,beforeNavigate=(
    await op('desk_save_template',{...(record&&!copy?{template_id:record.id,revision:record.revision}:{}),definition:d});await changed('Template saved. Existing requests retain their original version.');
   },'primary'),button('Back',render)));p.append(f);
  }
- function templateDetail(record){
+ async function templateDetail(record){
+  const current=await op('desk_get_workspace');workspace=current.workspace;account=current.account||{};
   const d=definition(record),p=screen('TEMPLATE DETAIL',`${d.title} · v${latest(record).version}`);
   p.append(actions(button('Edit as new version',()=>templateEditor(record)),button('Duplicate',()=>templateEditor(record,true)),button('Export definition',async()=>download((await op('desk_export_template',{template_id:record.id})).definition,d.title)),button('Back',render)));
   p.append(el('pre',d.subject+'\n\n'+d.body,'general-definition'));help(p,`${record.versions.length} saved version(s). Definition exports exclude profile and entered values, but literal wording still needs privacy review.`);
@@ -80,9 +85,24 @@ export function createGeneralWorkspace({$,el,op,notice,openCase,beforeNavigate=(
  function valueFields(parent,record,preview=false){
   const d=definition(record),fields=[...d.fields];
   if(preview)for(const id of ['agency','jurisdiction','state','date_start','date_end'])if(!fields.some(f=>f.id===id)&&new RegExp('{{\\s*(?:#if\\s+)?'+id+'\\s*}}').test(d.subject+'\n'+d.body))fields.push({id,label:'Preview '+labelFor(id),required:false,type:'text'});
-  const profileKeys=new Set(['organization','signature','requester_name','requester_address','requester_phone','requester_email']);
-  for(const f of fields){const initial=profileKeys.has(f.id)?(f.id==='requester_email'?account.email:workspace[f.id])||'':'';field(parent,'tv-'+f.id,f.label+(f.required?' *':''),f.type==='multiline'?'textarea':'input',initial);}
-  return()=>Object.fromEntries(fields.map(f=>[f.id,value('tv-'+f.id)]).filter(([key,v])=>v!==''||!['agency','jurisdiction','state','date_start','date_end'].includes(key)));
+  for(const [id,label,type] of requesterFields)if(!fields.some(f=>f.id===id)&&new RegExp('{{\\s*(?:#if\\s+)?'+id+'\\s*}}').test(d.subject+'\n'+d.body))fields.push({id,label,required:false,type:type==='textarea'?'multiline':'text'});
+  const profileKeys=new Set(requesterFields.map(([key])=>key));
+  identityInputs=[];
+  for(const f of fields){
+   const isProfile=profileKeys.has(f.id),input=field(parent,'tv-'+f.id,f.label+(f.required?' *':''),f.type==='multiline'?'textarea':'input',isProfile?defaultIdentity(f.id):'');
+   if(isProfile){
+    const override=checkbox(parent,'Use one-off '+labelFor(f.id),false,'tv-override-'+f.id);
+    input.disabled=true;override.onchange=()=>{input.disabled=!override.checked;};
+    identityInputs.push({key:f.id,input,override});
+   }
+  }
+  if(identityInputs.length)help(parent,'Identity inputs show saved enabled defaults. Check Use one-off to override a value; leave the checked input blank to suppress that default for this request.');
+  return()=>Object.fromEntries(fields.filter(f=>!profileKeys.has(f.id)||$('tv-override-'+f.id)?.checked).map(f=>[f.id,value('tv-'+f.id)]).filter(([key,v])=>v!==''||!['agency','jurisdiction','state','date_start','date_end'].includes(key)));
+ }
+ function defaultIdentity(key){return workspace.identity_enabled?.[key]?(key==='requester_email'?workspace.requester_email||account.email:workspace[key])||'':'';}
+ async function refreshIdentityDefaults(){
+  const current=await op('desk_get_workspace');workspace=current.workspace;account=current.account||{};
+  for(const {key,input,override} of identityInputs)if(input.isConnected&&!override.checked)input.value=defaultIdentity(key);
  }
  function download(data,title){
   const a=el('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)+'\n'],{type:'application/json'}));a.download=(title||'template').replace(/[^a-z0-9]+/gi,'-')+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
@@ -115,6 +135,7 @@ export function createGeneralWorkspace({$,el,op,notice,openCase,beforeNavigate=(
   }table.append(body);p.append(table);
  }
  async function requestForm(c,t){
+  const current=await op('desk_get_workspace');workspace=current.workspace;account=current.account||{};
   const record=(await op('desk_get_template',{template_id:c.template_id})).template,p=screen('NEW PRIVATE REQUEST',t.label),f=el('div',undefined,'general-form');
   help(p,`Template: ${definition(record).title} · version ${latest(record).version}. This creates a saved request only. Routing and exact email review follow in the correspondence workspace.`);
   field(f,'rq-name','Agency / custodian');const read=valueFields(f,record);
@@ -140,5 +161,5 @@ export function createGeneralWorkspace({$,el,op,notice,openCase,beforeNavigate=(
   const enabled=checkbox(f,'Enabled',d.enabled,'de-enabled');help(f,'Changing or disabling this mapping invalidates prepared previews. Use response_url as the field ID for a reviewed public file link when publishing a file manifest.');
   f.append(actions(button('Save destination',async()=>{await op('desk_save_destination',{...(record?{destination_id:record.id,revision:record.revision}:{}),name:value('de-name'),repository:value('de-repo'),template:value('de-template'),labels:value('de-labels').split(',').map(x=>x.trim()).filter(Boolean),fields:getFields(),enabled:enabled.checked});await changed('Destination saved locally. Nothing published; old previews require review again.');},'primary'),button('Back',destinationsView)));p.append(f);
  }
- return {load,render};
+ return {load,render,refreshIdentityDefaults};
 }

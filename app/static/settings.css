@@ -16,6 +16,13 @@
 .settings-source-toolbar button{flex-shrink:0;font-size:13px}
 .settings-status{font-size:13px;color:var(--muted,#53657a)}
 .settings-source-list{display:grid;gap:14px}
+.requester-defaults-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:14px;margin-top:18px}
+.requester-default-field{border:1px solid var(--line,#dfe6ec);border-radius:9px;padding:14px;min-width:0}
+.requester-default-field legend{font-weight:600;font-size:14px}
+.requester-default-field label{display:block;font-size:13px;margin:5px 0}
+.requester-default-field input:not([type=checkbox]),.requester-default-field textarea{display:block;width:100%;margin-top:5px}
+.requester-default-field .requester-default-toggle{display:flex;align-items:center;gap:8px;margin-top:12px}
+.requester-default-toggle input{width:auto;flex:none}
 .settings-source{border:1px solid var(--line,#dfe6ec);border-radius:9px;padding:18px;min-width:0}
 .settings-source-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
 .settings-source-heading h4{margin:0;font-size:16px;line-height:1.4}

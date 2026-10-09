@@ -15,6 +15,18 @@ from secure_store import ConnectorError, canonical
 import templates
 
 WORKSPACE_ID = 'default'
+IDENTITY_LIMITS = {'requester_name': 300, 'requester_address': 1500, 'requester_phone': 80,
+                   'requester_email': 254, 'organization': 300, 'requester_title': 300, 'signature': 4000}
+
+
+def identity_enabled(row):
+    # Read old profiles without writing a migration or changing their established defaults.
+    defaults = {key: key in ('organization', 'signature', 'requester_email') for key in IDENTITY_LIMITS}
+    if 'identity_enabled' not in row:
+        for key in ('requester_name', 'requester_address', 'requester_phone'):
+            defaults[key] = bool(row.get(key))
+    return {**defaults, **row.get('identity_enabled', {})}
+
 LEVELS = ('federal', 'state', 'county', 'municipality', 'other')
 RESPONSE_STAGES = ('none', 'acknowledged', 'partial_response', 'records_received', 'fee_notice', 'clarification', 'denied', 'closed')
 COVERAGE = ('not_assessed', 'partial', 'received', 'unavailable', 'not_applicable')
@@ -50,6 +62,7 @@ def legacy_storage(service):
 def default_workspace(service):
     return {'id': WORKSPACE_ID, 'revision': 0, 'name': '', 'organization': '', 'signature': '',
             'requester_name': '', 'requester_address': '', 'requester_phone': '',
+            'requester_email': '', 'requester_title': '', 'identity_enabled': identity_enabled({}),
             'starter_pack': 'civicresultmaps' if legacy_storage(service) else 'blank',
             'created_at': time.time()}
 
@@ -61,7 +74,8 @@ def workspace(service):
 def workspace_view(value):
     # Same-user local tooling can edit these encrypted values, but they are never part of templates/exports.
     return {key: value.get(key, '') for key in ('id', 'revision', 'name', 'organization', 'signature',
-        'requester_name', 'requester_address', 'requester_phone', 'starter_pack')} | {
+        'requester_name', 'requester_address', 'requester_phone', 'requester_email', 'requester_title', 'starter_pack')} | {
+        'identity_enabled': identity_enabled(value),
         'requester_configured': bool(value.get('requester_name') or value.get('requester_address') or value.get('requester_phone')),
         'legacy_storage': bool(value.get('legacy_storage', False))}
 
@@ -70,7 +84,7 @@ def get_workspace(service):
     row = workspace(service)
     row['legacy_storage'] = legacy_storage(service)
     account = connector.account_summary(service.mail_store)
-    return {'workspace': workspace_view(row) | {'requester_email': account.get('email')},
+    return {'workspace': workspace_view(row),
             'account': {key: account.get(key) for key in ('configured','email','display_name','profile_id','legacy_storage')}}
 
 
@@ -78,10 +92,17 @@ def save_workspace(service, args):
     row = workspace(service)
     if type(args.get('revision')) is not int or args['revision'] != row['revision']:
         raise ConnectorError('Workspace changed in another window. Reload before saving.')
+    flags = identity_enabled(row)
+    if 'identity_enabled' in args:
+        supplied = args['identity_enabled']
+        if not isinstance(supplied, dict) or set(supplied) - set(IDENTITY_LIMITS) or any(type(x) is not bool for x in supplied.values()):
+            raise ConnectorError('Identity flags must be known requester fields with boolean values.')
+        flags.update(supplied)
     # Omitted private fields preserve their encrypted values. Explicit empty strings intentionally clear them.
-    for key, limit in (('name', 160), ('organization', 300), ('signature', 4000),
-                       ('requester_name', 300), ('requester_address', 1500), ('requester_phone', 80)):
+    for key, limit in [('name', 160), *IDENTITY_LIMITS.items()]:
         if key in args: row[key] = text(args[key], limit, True)
+    if row.get('requester_email'): connector.address(row['requester_email'])
+    row['identity_enabled'] = flags
     if 'starter_pack' in args:
         if args['starter_pack'] not in ('blank', 'civicresultmaps'): raise ConnectorError('Starter pack must be blank or civicresultmaps.')
         row['starter_pack'] = args['starter_pack']
@@ -183,14 +204,16 @@ def save_campaign(service, args):
 def _profile_values(service):
     row = workspace(service)
     account=connector.account_summary(service.mail_store)
-    return {'organization':row.get('organization',''),'signature':row.get('signature',''),'requester_email':account.get('email') or ''}
+    flags = identity_enabled(row)
+    values = {key: row.get(key, '') if flags[key] else '' for key in IDENTITY_LIMITS}
+    if flags['requester_email']:
+        values['requester_email'] = row.get('requester_email') or account.get('email') or ''
+    return values
 
 
 def render_values(service, definition, values, builtins=None):
     if not isinstance(values, dict): raise ConnectorError('Request values must be an object.')
-    profile=_profile_values(service); declared={x['id']:x for x in definition['fields']}; private=workspace(service)
-    for key in ('requester_name','requester_address','requester_phone'):
-        if declared.get(key,{}).get('required') is True: profile[key]=private.get(key,'')
+    profile=_profile_values(service)
     return {**profile, **(builtins or {}), **values}
 
 

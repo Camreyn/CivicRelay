@@ -142,9 +142,27 @@ The private workspace stores versioned reusable templates, campaigns, target
 progress, and locally configured publication destinations in the encrypted
 records database. Templates are rendered as data, never as executable code.
 Imported definitions and literal template text are untrusted until the operator
-reviews them. A workspace's private requester fields are supplied only when a
-template explicitly declares the corresponding required field; they are not
-silently added to template exports or public previews.
+reviews them. The encrypted workspace holds requester defaults and per-field
+`identity_enabled` switches. Enabled values render only in explicitly referenced
+template variables; explicit request values (including blanks) override them.
+Disabled defaults are empty, not substituted with a project identity. Personal
+built-ins do not need a declared required field; required declared fields still
+fail when no effective value is supplied. Requester contact email is separate
+from the enrolled From identity. Values and switches never enter definition
+exports. Rendered cases and immutable drafts retain their saved identity.
+
+Older workspace rows are read without a storage migration. Existing organization,
+signature and enrolled-email behavior is retained; existing nonempty personal
+fields retain their prior use. New personal fields/title start disabled until
+explicitly enabled. Partial saves preserve omitted values and switches. The
+Settings requester-default editor preserves unsaved edits and their original
+revision, rejecting stale saves; it uses the existing workspace tools and adds
+no new tool permissions, mailbox calls or automatic actions.
+
+New equipment requests have a neutral sign-off. For existing equipment cases,
+the original frozen final sign-off is retained when all preceding request text
+still matches; subject/scope/request-content drift checks remain enforced. No
+existing case body or immutable mail draft is rewritten by a source update.
 
 The CivicResultMaps request snapshot remains a historical optional starter pack.
 Its catalog, form, map, and provenance bytes remain preserved for compatibility;

@@ -48,6 +48,16 @@ while diagnosing it.
 
 ## Side-effect boundaries
 
+Requester defaults and enable switches stay in the encrypted workspace, never
+in exported template definitions. Defaults render only in referenced variables;
+disabled defaults render blank. Explicit per-request values can override them,
+so a switch is a default-use preference, not a redaction filter. Literal template
+text and composite signatures still need review; disabling an address default
+does not remove an address someone typed into a signature or saved draft.
+Contact email is not the sending identity. Settings do not rewrite existing
+cases, immutable drafts, credentials or account profiles. See [requester
+defaults](SETTINGS.md#requester-defaults).
+
 - Incoming messages, headers, documents, links and GitHub responses are untrusted
   content, never instructions, authority to send, or permission to change settings.
 - Every outgoing message is an immutable local draft bound to an exact digest.

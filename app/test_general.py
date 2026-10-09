@@ -86,15 +86,71 @@ class GeneralTests(unittest.TestCase):
         self.assertEqual(self.call('desk_preview_template',template_id=t['id'],values={'topic':'x','details':'y'})['rendered']['body'],'AB')
         with self.assertRaises(ConnectorError): self.call('desk_save_template',definition=self.definition(subject='bad\nheader'))
         with self.assertRaises(ConnectorError): self.call('desk_preview_template',template_id=t['id'],values={'topic':'a\nb'})
-    def test_private_profile_requires_required_declared_field_and_exports_no_case_values(self):
+    def test_enabled_private_builtins_need_no_required_declaration_and_are_not_exported(self):
         w=self.call('desk_get_workspace')['workspace']
-        self.call('desk_save_workspace',revision=w['revision'],requester_name='Synthetic Private Name',requester_address='Synthetic Private Address')
-        with self.assertRaises(ConnectorError): self.call('desk_save_template',definition=self.definition(body='{{requester_name}}'))
-        fields=self.definition()['fields']+[{'id':'requester_name','label':'Requester','required':True,'type':'text'}]
-        t=self.call('desk_save_template',definition=self.definition(fields=fields,body='{{requester_name}} {{topic}}'))['template']
+        self.call('desk_save_workspace',revision=w['revision'],requester_name='Synthetic Private Name',requester_address='Synthetic Private Address',identity_enabled={'requester_name':True})
+        t=self.call('desk_save_template',definition=self.definition(body='{{requester_name}} {{topic}} {{#if requester_address}}Address: {{requester_address}}{{/if}}'))['template']
         self.assertIn('Synthetic Private Name',self.call('desk_preview_template',template_id=t['id'],values={'topic':'Synthetic'})['rendered']['body'])
+        self.assertNotIn('Synthetic Private Address',self.call('desk_preview_template',template_id=t['id'],values={'topic':'Synthetic'})['rendered']['body'])
         exported=self.call('desk_export_template',template_id=t['id'])['definition']
         self.assertNotIn('Synthetic Private Name',json.dumps(exported))
+        self.assertNotIn('identity_enabled',json.dumps(exported))
+    def test_all_identity_defaults_switches_overrides_and_blank_signature(self):
+        import general
+        defaults={key:'Synthetic '+key for key in general.IDENTITY_LIMITS}
+        defaults['requester_email']='contact@example.test'
+        row=self.call('desk_save_workspace',revision=0,**defaults,identity_enabled={key:True for key in defaults})['workspace']
+        t=self.call('desk_save_template',definition=self.definition(fields=[],subject='Synthetic request',body='Identity: '+' | '.join('{{'+key+'}}' for key in defaults)))['template']
+        preview=lambda values:self.call('desk_preview_template',template_id=t['id'],values=values)['rendered']['body']
+        for key,value in defaults.items(): self.assertIn(value,preview({}))
+        row=self.call('desk_save_workspace',revision=row['revision'],identity_enabled={key:False for key in defaults})['workspace']
+        self.assertEqual(preview({}),'Identity:  |  |  |  |  |  | ')
+        for key,value in defaults.items():
+            self.assertEqual(row[key],value)
+            self.assertIn('One-off',preview({key:'One-off'}))
+        row=self.call('desk_save_workspace',revision=row['revision'],identity_enabled={'organization':True,'signature':True},signature='')['workspace']
+        self.assertIn(defaults['organization'],preview({}))
+        self.assertNotIn(defaults['signature'],preview({}))
+        self.assertNotIn('Staff',preview({}))
+        self.assertNotIn(defaults['organization'],preview({'organization':''}))
+        with self.assertRaisesRegex(ConnectorError,'revision|changed'):
+            self.call('desk_save_workspace',revision=0,organization='Wrong revision')
+    def test_flags_validation_partial_preservation_and_contact_email_is_not_sender(self):
+        from unittest.mock import patch
+        import connector
+        row=self.call('desk_save_workspace',revision=0,requester_name='Synthetic Name',requester_email='contact@example.test',requester_title='Research lead',identity_enabled={'requester_name':True,'requester_title':True})['workspace']
+        row=self.call('desk_save_workspace',revision=row['revision'],name='Only workspace label',identity_enabled={'requester_phone':False})['workspace']
+        self.assertEqual(row['requester_name'],'Synthetic Name');self.assertTrue(row['identity_enabled']['requester_name'])
+        with patch.object(connector,'account_summary',return_value={'email':'sender@example.test','configured':True}):
+            current=self.call('desk_get_workspace')
+            self.assertEqual(current['account']['email'],'sender@example.test')
+            self.assertEqual(current['workspace']['requester_email'],'contact@example.test')
+        for bad in ({'unknown':True},{'signature':1},{'requester_name':'true'},[]):
+            with self.assertRaisesRegex(ConnectorError,'flags'):
+                self.call('desk_save_workspace',revision=row['revision'],identity_enabled=bad)
+        with self.assertRaises(ConnectorError):self.call('desk_save_workspace',revision=row['revision'],requester_email='not-an-email')
+        self.assertEqual(self.call('desk_get_workspace')['workspace']['revision'],row['revision'])
+    def test_legacy_identity_read_preserves_values_without_migration(self):
+        legacy={'id':'default','revision':3,'name':'Synthetic old desk','organization':'Old org','signature':'Old signature','requester_name':'Old requester','requester_address':'','requester_phone':'','starter_pack':'blank'}
+        self.db.put('workspace','default',legacy)
+        row=self.call('desk_get_workspace')['workspace']
+        self.assertTrue(row['identity_enabled']['requester_name']);self.assertFalse(row['identity_enabled']['requester_address'])
+        self.assertFalse(row['identity_enabled']['requester_title']);self.assertEqual(row['requester_email'],'')
+        self.assertEqual(self.db.get('workspace','default'),legacy)
+        row=self.call('desk_save_workspace',revision=3,name='Renamed')['workspace']
+        self.assertEqual(row['signature'],'Old signature');self.assertTrue(row['identity_enabled']['requester_name'])
+    def test_disabled_required_identity_still_needs_explicit_value_and_cases_are_frozen(self):
+        row=self.call('desk_save_workspace',revision=0,requester_name='Before Name',identity_enabled={'requester_name':True})['workspace']
+        fields=[{'id':'requester_name','label':'Name','required':True,'type':'text'}]
+        t=self.call('desk_save_template',definition=self.definition(fields=fields,subject='Synthetic request',body='From {{requester_name}}'))['template']
+        c=self.call('desk_save_campaign',name='Synthetic identity campaign',description='',template_id=t['id'],date_start='',date_end='',targets=[{'id':'a','label':'Agency','level':'other'}])['campaign']
+        old=self.call('desk_create_request',campaign_id=c['id'],target_id='a',agency='Agency',values={})['case']
+        self.call('desk_save_workspace',revision=row['revision'],requester_name='After Name',identity_enabled={'requester_name':False})
+        self.assertEqual(self.s.case(old['id'])['body'],'From Before Name')
+        with self.assertRaisesRegex(ConnectorError,'missing required'):
+            self.call('desk_preview_template',template_id=t['id'],values={})
+        new=self.call('desk_create_request',campaign_id=c['id'],target_id='a',agency='Agency',values={'requester_name':'One-off'})['case']
+        self.assertEqual(new['body'],'From One-off')
     def test_campaign_counts_idempotency_and_target_preservation(self):
         t=self.template(); campaign=self.call('desk_save_campaign',name='Campaign',description='',template_id=t['id'],date_start='2026-09-17',date_end='2026-09-20',targets=[{'id':'a','label':'A','level':'state','state':'AZ'},{'id':'b','label':'B','level':'other'}])['campaign']
         first=self.call('desk_create_request',campaign_id=campaign['id'],target_id='a',agency='Agency',values={'topic':'x'})

@@ -20,11 +20,22 @@ The only rendering syntax is `{{field}}` and a non-nested conditional block,
 includes, lookup, scripts, or unrecognized placeholders are allowed. Missing
 required values and unknown values are errors.
 
-The explicit built-ins are `organization`, `signature`, `requester_email`,
-`agency`, `jurisdiction`, `state`, `date_start`, and `date_end`. Personal
-requester name, address, or phone data is private workspace data. It is injected
-only when the template has a required field with the exact corresponding ID; it
-is never added by default.
+The explicit built-ins are `organization`, `signature`, `requester_name`,
+`requester_address`, `requester_phone`, `requester_email`, `requester_title`,
+`agency`, `jurisdiction`, `state`, `date_start`, and `date_end`. Set private values
+and per-field switches in **Settings → Requester defaults**. Enabled defaults
+render only where a template references them; disabled or missing values render
+blank. Explicit request values override defaults, including explicit blanks.
+Built-ins do not need a declared field. Declare one as `required: true` only if
+your template must reject a missing value; this is not a legal requirement.
+Contact email does not change the sending account. Nothing automatically appends
+a signature, substitutes an organization, or supplies a bundled project identity.
+Use `{{#if requester_address}}...{{/if}}` for optional contact sections.
+See [all identity variables and upgrade behavior](SETTINGS.md#requester-defaults).
+
+Preview and new-request forms show referenced identity variables automatically.
+Their **Use one-off …** controls let you override a default or suppress it with
+an explicit blank. Unchecked fields continue to inherit current saved defaults.
 
 Saving a changed definition creates a hashed, immutable version snapshot;
 re-saving an unchanged definition keeps its current version. Archive by saving
@@ -36,6 +47,11 @@ without a template ID. Export returns only the current definition and never
 workspace data, profile values, or values entered for a particular request. A
 definition can still contain author-written literal text, so review an export
 before treating it as safe to share.
+
+Workspace defaults and their enable switches are never included in definition
+exports. Changing a default affects only later previews/new requests, not saved
+case bodies, template versions or immutable mail drafts. A user-authored literal
+name/signature remains literal; use a variable when you want a configurable value.
 
 ## Minimal importable example
 

@@ -15,6 +15,8 @@ from secure_store import ConnectorError, canonical
 SCHEMA_VERSION = 1
 FIELD_ID = re.compile(r'^[a-z][a-z0-9_]{0,63}$')
 TOKEN = re.compile(r'{{\s*(#if\s+)?([a-z][a-z0-9_]*)\s*}}')
+BUILTINS = {'organization', 'signature', 'requester_email', 'requester_title', 'agency', 'jurisdiction',
+            'state', 'date_start', 'date_end', 'requester_name', 'requester_address', 'requester_phone'}
 
 
 def text(value, limit=4000, blank=False):
@@ -78,12 +80,8 @@ def normalize_definition(value):
             if '{{' in value[cursor:match.start()] or '}}' in value[cursor:match.start()]:
                 raise ConnectorError(f'{label} has invalid placeholder syntax.')
             field_id = match.group(2) or match.group(4)
-            if field_id and field_id not in ids and field_id not in {'organization', 'signature', 'requester_email', 'agency', 'jurisdiction', 'state', 'date_start', 'date_end', 'requester_name', 'requester_address', 'requester_phone'}:
+            if field_id and field_id not in ids and field_id not in BUILTINS:
                 raise ConnectorError(f'{label} references undeclared field {field_id}.')
-            if field_id in {'requester_name', 'requester_address', 'requester_phone'}:
-                field=next((x for x in normalized_fields if x['id']==field_id),None)
-                if not field or not field['required']:
-                    raise ConnectorError(f'{label} may use {field_id} only through an explicitly required field.')
             if match.group(1):
                 depth += 1
                 if depth > 1: raise ConnectorError(f'{label} does not allow nested conditional placeholders.')
@@ -119,7 +117,7 @@ def render(definition, values):
     if not isinstance(values, dict) or any(not isinstance(k, str) for k in values):
         raise ConnectorError('Template values must be an object.')
     declared = {f['id']: f for f in definition['fields']}
-    permitted = set(declared) | {'organization', 'signature', 'requester_email', 'agency', 'jurisdiction', 'state', 'date_start', 'date_end', 'requester_name', 'requester_address', 'requester_phone'}
+    permitted = set(declared) | BUILTINS
     unknown = set(values) - permitted
     if unknown:
         raise ConnectorError('Template values include unknown fields: ' + ', '.join(sorted(unknown)))

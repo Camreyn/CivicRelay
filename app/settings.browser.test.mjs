@@ -10,6 +10,7 @@ const assets = new Map([
   ['/settings.js', ['text/javascript', await readFile(new URL('./static/settings.js', import.meta.url), 'utf8')]],
   ['/mail-privacy.js', ['text/javascript', await readFile(new URL('./static/mail-privacy.js', import.meta.url), 'utf8')]],
   ['/sending-limits.js', ['text/javascript', await readFile(new URL('./static/sending-limits.js', import.meta.url), 'utf8')]],
+  ['/requester-defaults.js', ['text/javascript', await readFile(new URL('./static/requester-defaults.js', import.meta.url), 'utf8')]],
   ['/settings.css', ['text/css', await readFile(new URL('./static/settings.css', import.meta.url), 'utf8')]],
   ['/style.css', ['text/css', await readFile(new URL('./static/style.css', import.meta.url), 'utf8')]],
 ]);
@@ -18,11 +19,13 @@ const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><link r
 <script type="module">
 import {createSettings} from '/settings.js';
 window.calls = []; window.changed = 0; window.failInventory = false; window.hold = null;
+window.workspace = {revision:0,identity_enabled:{requester_name:false,requester_address:false,requester_phone:false,requester_email:true,organization:true,requester_title:false,signature:true}};
 window.sources = [{id:'ma-test',state:'MA',label:'Synthetic municipal directory',description:'Fixture only; no real contact information.',url:'https://agency.example.test/directory',last_attempt_at:'2026-09-01T12:00:00Z',last_success_at:'2026-09-01T12:00:00Z',record_count:351,expected_count:351,checked_on:'2026-09-01',collection_mode:'direct_fetch',last_result:{ok:true,code:'collected',message:'Synthetic collection saved.',debug:[]}},
 {id:'safe-link-test',state:'XX',label:'Synthetic unsafe link',description:'URL handling test',url:'javascript:alert(1)',record_count:0}];
 window.outcome = {ok:false,code:'source_blocked',message:'The source blocked this request. Saved records are unchanged.',attempted_at:'2026-09-23T12:00:00Z',record_count:351,last_success_at:'2026-09-01T12:00:00Z',debug:['HTTP 200 contained a challenge page.', '<img src=x onerror=window.injected=true>']};
 window.api = async (tool,args) => {
   window.calls.push({tool,args});
+  if(tool === 'desk_get_workspace') return structuredClone({workspace:window.workspace});
   if(tool === 'desk_get_sources') {
     if(window.failInventory) throw Error('Synthetic unavailable inventory');
     return structuredClone({sources:window.sources});
@@ -64,6 +67,8 @@ try {
   assert.match(await source.innerText(),/351 of 351 expected entries/);
   assert.match(await source.innerText(),/Official source checked on\s+2026-09-01/);
   await settings.getByRole('tab',{name:'Sources',exact:true}).press('ArrowRight');
+  assert.equal(await settings.getByRole('tab',{name:'Requester defaults',exact:true}).getAttribute('aria-selected'),'true');
+  await settings.getByRole('tab',{name:'Requester defaults',exact:true}).press('ArrowRight');
   assert.equal(await settings.getByRole('tab',{name:'State guides',exact:true}).getAttribute('aria-selected'),'true');
   assert.match(await settings.locator('#settings-panel-guides').innerText(),/starts collapsed/);
   await settings.getByRole('tab',{name:'State guides',exact:true}).press('Home');
@@ -152,7 +157,7 @@ try {
   await page.keyboard.press('Escape');
   assert.equal(await settings.evaluate(node=>node.open),false);
   const calls = await page.evaluate(()=>window.calls);
-  assert.deepEqual([...new Set(calls.map(call=>call.tool))].sort(),['desk_get_sources','desk_import_source','desk_refresh_source']);
+  assert.deepEqual([...new Set(calls.map(call=>call.tool))].sort(),['desk_get_sources','desk_get_workspace','desk_import_source','desk_refresh_source']);
   const imported = calls.find(call=>call.tool==='desk_import_source').args;
   assert.deepEqual(imported,{source_id:'ma-test',checked_on:'2026-09-23',text:'Synthetic reviewed directory text only.'});
   assert.deepEqual(errors,[]);

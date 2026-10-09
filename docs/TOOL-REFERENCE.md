@@ -36,7 +36,7 @@ Operation annotation: read-only.
 
 ### `desk_save_workspace`
 
-Save local workspace identity, signature, optional private requester details and blank/CivicResultMaps starter-pack selection with revision control. Does not enroll credentials, switch accounts, send or authorize fees.
+Save private template defaults and identity_enabled switches by revision. Explicit request values override defaults; omitted settings are preserved. Contact email never changes the sender. No credentials, sends or fee authority.
 
 Operation annotation: may write; follow user authorization and host permissions.
 
@@ -71,6 +71,42 @@ Operation annotation: may write; follow user authorization and host permissions.
     "requester_phone": {
       "type": "string",
       "maxLength": 80
+    },
+    "requester_email": {
+      "type": "string",
+      "maxLength": 254
+    },
+    "requester_title": {
+      "type": "string",
+      "maxLength": 300
+    },
+    "identity_enabled": {
+      "type": "object",
+      "properties": {
+        "requester_name": {
+          "type": "boolean"
+        },
+        "requester_address": {
+          "type": "boolean"
+        },
+        "requester_phone": {
+          "type": "boolean"
+        },
+        "requester_email": {
+          "type": "boolean"
+        },
+        "organization": {
+          "type": "boolean"
+        },
+        "requester_title": {
+          "type": "boolean"
+        },
+        "signature": {
+          "type": "boolean"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
     },
     "starter_pack": {
       "type": "string",

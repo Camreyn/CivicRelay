@@ -62,6 +62,8 @@ class EquipmentTests(unittest.TestCase):
         self.assertIn('No fees are authorized',first['body'])
         self.assertIn('older agreements',first['body'])
         self.assertIn('not an allegation',first['body'])
+        self.assertNotIn('Staff',first['body'])
+        self.assertTrue(first['body'].endswith('Thank you.'))
         reset=equipment.default_state(self.s,'AZ');self.db.put('campaign',reset['id'],reset)
         repaired=self.create()
         row=self.call('desk_get_equipment_campaign',state='AZ')['states'][0]
@@ -155,6 +157,13 @@ class EquipmentTests(unittest.TestCase):
             self.call('desk_clone_case',case_id=c['id'],label='Other office')
         stored=self.s.case(c['id']);stored['base']['body']='changed';self.s.save(stored)
         with self.assertRaises(ConnectorError):self.s.verify_routing(self.s.case(c['id']))
+    def test_old_equipment_signoff_is_preserved_without_false_template_drift(self):
+        c=self.create();stored=self.s.case(c['id'])
+        stored['base']['body']=stored['base']['body'].rsplit('\n\n',1)[0]+'\n\nPrevious operator signature'
+        stored['body']=stored['base']['body'];self.s.save(stored)
+        c=self.call('desk_save_case',case_id=c['id'],revision=stored['revision'],recipient='records@example.gov',subject=c['subject'],body=stored['body'],routing_verified=True,routing_evidence='https://example.gov/records')['case']
+        self.assertFalse(c['catalog_drift']);self.assertTrue(c['body'].endswith('Previous operator signature'))
+        self.s.verify_routing(self.s.case(c['id']))
     def test_campaign_envelope_identity_guard(self):
         with self.assertRaises(ConnectorError):self.db.put('campaign','x',{'id':'y'})
 
